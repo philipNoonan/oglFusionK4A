@@ -42,7 +42,7 @@ namespace rgbd
 
 
 
-
+		glm::mat4 K0;
 
 		std::vector<float> makeJTJ(
 			std::vector<float> v

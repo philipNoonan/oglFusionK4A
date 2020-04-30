@@ -899,7 +899,7 @@ bool App::runP2P(
 	volume.raycast(frame, currPose);
 
 
-	for (int lvl = 0; lvl >= 0; lvl--)
+	for (int lvl = 2; lvl >= 0; lvl--)
 	{
 		for (int iter = 0; iter < rgbd::ICPConstParam::MAX_ITR_NUM[lvl]; iter++)
 		{
@@ -1011,7 +1011,7 @@ bool App::runP2V(
 	Eigen::Matrix<double, 6, 1> result_prev = result;
 
 	
-	for (int lvl = 0; lvl >= 0; lvl--)
+	for (int lvl = 2; lvl >= 0; lvl--)
 	{
 		for (int iter = 0; iter < rgbd::ICPConstParam::MAX_ITR_NUM[lvl]; iter++)
 		{
@@ -1021,9 +1021,9 @@ bool App::runP2V(
 			glm::mat4 currT;
 			std::memcpy(glm::value_ptr(currT), tempT.data(), 16 * sizeof(float));
 
-			p2vicp.track(volume.getID(), frame, glm::vec3(dimension), glm::vec3(128), currT, lvl);
+			p2vicp.track(volume.getID(), frame, glm::vec3(dimension), glm::vec3(std::stoi(sizes[sizeX]), std::stoi(sizes[sizeY]), std::stoi(sizes[sizeZ])), currT, lvl);
 
-			p2vicp.reduce(glm::ivec2(frame.getHeight(), frame.getWidth()));
+			p2vicp.reduce(glm::ivec2(frame.getHeight() >> lvl, frame.getWidth() >> lvl));
 
 			p2vicp.getReduction(b, C, AE, icpCount);
 
@@ -1266,7 +1266,7 @@ void App::resetVolume()
 
 	if (deleteFlag)
 	{
-		volume.resize(glm::vec3(sizeX));
+		volume.resize(glm::vec3(std::stoi(sizes[sizeX]), std::stoi(sizes[sizeY]), std::stoi(sizes[sizeZ])));
 	}
 	volume.setVolDim(glm::vec3(dimension));
 	volume.reset();
@@ -1307,7 +1307,7 @@ void App::resetVolume()
 	//}
 
 
-	volSlice = sizeX / 2.0f;
+	volSlice = std::stoi(sizes[sizeX]) / 2.0f;
 
 	//krender.setVolumeSize(gconfig.volumeSize);
 
@@ -1333,24 +1333,24 @@ void App::resetVolume()
 
 void App::saveSTL()
 {
-	//mcconfig.gridSize = glm::uvec3(gconfig.volumeSize.x, gconfig.volumeSize.y, gconfig.volumeSize.z);
-	//mcconfig.voxelSize = glm::vec3(gconfig.volumeDimensions.x / gconfig.volumeSize.x, gconfig.volumeDimensions.y / gconfig.volumeSize.y, gconfig.volumeDimensions.z / gconfig.volumeSize.z);
+	mcconfig.gridSize = glm::uvec3(std::stoi(sizes[sizeX]), std::stoi(sizes[sizeY]), std::stoi(sizes[sizeZ]));
+	mcconfig.voxelSize = glm::vec3(dimension / std::stoi(sizes[sizeX]), dimension / std::stoi(sizes[sizeY]), dimension / std::stoi(sizes[sizeZ]));
 
-	//mcubes.setConfig(mcconfig);
+	mcubes.setConfig(mcconfig);
 
-	//if (trackDepthToPoint)
-	//{
-	//	mcubes.setVolumeTexture(p2pFusion.getVolumeID());
-	//}
-	//else if (trackDepthToVolume)
-	//{
-	//	mcubes.setVolumeTexture(p2vFusion.getVolumeID());
-	//}
-	////mcubes.setVolumeTexture(gflood.getFloodSDFTexture());
-	//mcubes.init();
-	//mcubes.setIsolevel(0.0f);
-	//mcubes.generateMarchingCubes();
-	//mcubes.exportMesh();
+	if (trackDepthToPoint)
+	{
+		mcubes.setVolumeTexture(volume.getID());
+	}
+	else if (trackDepthToVolume)
+	{
+		mcubes.setVolumeTexture(volume.getID());
+	}
+	//mcubes.setVolumeTexture(gflood.getFloodSDFTexture());
+	mcubes.init();
+	mcubes.setIsolevel(0.0f);
+	mcubes.generateMarchingCubes();
+	mcubes.exportMesh();
 }
 
 void App::saveSplatter()

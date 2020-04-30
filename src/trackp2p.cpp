@@ -23,7 +23,8 @@ namespace rgbd
 		const glm::mat4 &K
 	)
 	{
-
+		K0 = K;
+		
 		std::vector<BufferReduction> tmpMapData(width * height);
 		std::vector<float> tmpOutputData(32 * 8);
 
@@ -40,9 +41,7 @@ namespace rgbd
 		
 
 
-		glm::mat4 invK = glm::inverse(K);
-		progs["p2pTrack"]->setUniform("K", K);
-		progs["p2pTrack"]->setUniform("invK", invK);
+
 		progs["p2pTrack"]->setUniform("distThresh", distThresh);
 		progs["p2pTrack"]->setUniform("normThresh", normThresh);
 	}
@@ -53,9 +52,21 @@ namespace rgbd
 		int layer
 	)
 	{
+
+		int bias(int(pow(2, layer)));
+
+		glm::mat4 _K(1.0f);
+		_K[0][0] = K0[0][0] / bias; _K[1][1] = K0[1][1] / bias;
+		_K[2][0] = (K0[2][0] + 0.5f) / bias - 0.5f; _K[2][1] = (K0[2][1] + 0.5f) / bias - 0.5f;
+
 		glm::mat4 invT = glm::inverse(T);
+		glm::mat4 _invK = glm::inverse(_K);
 
 		progs["p2pTrack"]->use();
+
+		progs["p2pTrack"]->setUniform("K", _K);
+		progs["p2pTrack"]->setUniform("invK", _invK);
+
 		progs["p2pTrack"]->setUniform("T", T);
 		progs["p2pTrack"]->setUniform("invT", invT);
 		progs["p2pTrack"]->setUniform("mip", layer);

@@ -45,6 +45,7 @@ namespace rgbd
 		int level
 	)
 	{
+
 		glm::mat4 invT = glm::inverse(T);
 
 		progs["p2vTrack"]->use();
