@@ -1,0 +1,83 @@
+#version 430
+
+layout(local_size_x = 112, local_size_y = 1) in;
+
+uniform ivec2 imSize;
+
+
+layout(std430, binding = 0) buffer rowSO3data
+{
+    vec4 rowSO3[];
+};
+
+layout(std430, binding = 1) buffer reductionOutputData
+{
+	float outputData[];
+};
+
+shared float S[112][11];
+
+
+void main()
+{
+	int devNumber = 0;
+    uint sline = gl_LocalInvocationID.x; // 0 - 111
+
+    float sums[11];
+
+    for (int i = 0; i < 11; ++i)
+    {
+        sums[i] = 0.0f;
+    }
+
+    for (uint y = gl_WorkGroupID.x; y < imSize.y; y += gl_NumWorkGroups.x) // y = (0:8); y < 424; y += 8
+    {
+        for (uint x = sline; x < imSize.x; x += gl_WorkGroupSize.x) // x = (0:112); x < 512; x += 112
+        {
+            vec4 row = rowSO3[(y * imSize.x) + x];
+
+			if (row.w == 0)
+			{
+				continue;
+			}
+
+			sums[0] += row[0] * row[0],
+            sums[1] += row[0] * row[1],
+            sums[2] += row[0] * row[2],
+            sums[3] += row[0] * row[3],
+            
+            sums[4] += row[1] * row[1],
+            sums[5] += row[1] * row[2],
+            sums[6] += row[1] * row[3],
+            
+            sums[7] += row[2] * row[2],
+            sums[8] += row[2] * row[3],
+            
+			sums[9] += row[3] * row[3], // residual 
+            sums[10] += 1.0f;           // inliers
+        }
+    }
+
+
+    for (int i = 0; i < 11; ++i)
+    {
+        S[sline][i] = sums[i];
+    }  
+
+    barrier(); // wait for threads to finish
+
+	if (sline < 11)
+	{
+		for (uint i = 1; i < gl_WorkGroupSize.x; ++i)
+		{
+			S[0][sline] += S[i][sline];
+		}
+
+		outputData[sline + gl_WorkGroupID.x * 11] = S[0][sline];
+		//imageStore(outputData, ivec2(sline, gl_WorkGroupID.x), vec4(S[0][sline]));
+
+	}
+
+}
+
+

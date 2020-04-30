@@ -1,0 +1,152 @@
+#version 430
+
+layout(local_size_x = 32, local_size_y = 32) in;
+
+
+
+
+
+layout(binding = 0, rgba32f) uniform image2D lastVertexMap; 
+
+layout(binding = 1, rg32f) uniform image2D gradientMap;
+
+layout(binding = 2, rg16ui) uniform uimage2D mappingC2DMap;
+layout(binding = 3, rg16ui) uniform uimage2D mappingD2CMap;
+
+layout(binding = 4, rgba32f) uniform image2D outputTestImage;
+
+float FLT_EPSILON = 1.19209290E-07f;
+
+uniform float sigma;
+uniform float sobelScale;
+uniform vec4 cam; // cx cy fx fy
+uniform int level;
+
+struct DataTerm
+{
+	ivec2 zero;
+    ivec2 one;
+    float diff;
+    bool valid;
+};
+
+struct JtJJtrSE3
+{
+    // // 27 floats for each product (27)
+    //float aa, ab, ac, ad, ae, af, ag,
+    //          bb, bc, bd, be, bf, bg,
+    //              cc, cd, ce, cf, cg,
+    //                  dd, de, df, dg,
+    //                      ee, ef, eg,
+    //                          ff, fg;
+
+	float data[27];
+
+    //Extra data needed (29)
+    float residual;
+	float inliers;
+};
+
+struct rowSE3
+{
+	float data[7];
+	float inliers;
+};
+
+layout(std430, binding = 0) buffer corresData
+{
+    DataTerm corresImg[];
+};
+
+layout(std430, binding = 1) buffer outputData
+{
+    rowSE3 outputBuffer[];
+};
+
+float luminance(vec3 rgb)
+{
+    return (0.299f * float(rgb.x) + 0.587f * float(rgb.y) + 0.114f * float(rgb.z));
+}
+
+void main()
+{
+	ivec2 pix = ivec2(gl_GlobalInvocationID.xy);
+	ivec2 imSize = imageSize(gradientMap);
+
+	rowSE3 row;
+	
+	//imageStore(outputTestImage, pix, vec4(0)); 
+
+
+	DataTerm corresp = corresImg[pix.y * imSize.x + pix.x];
+
+	bool found_corresp = corresp.valid;
+
+	//imageStore(outputTestImage, pix, vec4(0)); 
+
+	vec4 outData = vec4(0);
+
+	if (found_corresp)
+	{
+
+		float w = sigma + abs(corresp.diff);
+
+		w = w > FLT_EPSILON ? 1.0 / w : 1.0f;
+
+		if (sigma == -1)
+		{
+			w = 1;
+		}
+
+		//imageStore(outputTestImage, pix, vec4(1.0, 0.9, 0, 1)); 
+
+		//w = 1.0f;
+
+		row.data[6] = -w * corresp.diff;
+
+		ivec2 lastDepthLoc = ivec2(imageLoad(mappingC2DMap, corresp.zero).xy);
+
+		vec3 cloudPoint = imageLoad(lastVertexMap, lastDepthLoc).xyz;
+		float invZ = 1.0f / cloudPoint.z;
+
+		if (cloudPoint.z == 0 || isnan(cloudPoint.z))
+		{
+			row.data[0] = row.data[1] = row.data[2] = row.data[3] = row.data[4] = row.data[5] = row.data[6] = row.inliers = 0.f;
+		}
+		else
+		{
+			//w = 1; // FOR TESTING
+
+			vec2 dI_dxdy_val = w * sobelScale * imageLoad(gradientMap, corresp.one).xy; // 0.03125 is 1 / 32 (the normalizer for 3 10 scharr filter)
+
+			//imageStore(outputTestImage, pix, vec4(abs(corresp.diff).xxx, 1)); 
+			//imageStore(outputTestImage, pix, vec4(abs(dI_dxdy_val).xy, 0, 1)); 
+
+			float v0 = -dI_dxdy_val.x * cam.z * invZ; // should this be color or depth params?
+			float v1 = -dI_dxdy_val.y * cam.w * invZ;
+			float v2 = -(v0 * cloudPoint.x + v1 * cloudPoint.y) * invZ;
+
+			outData = vec4(abs(corresp.diff).xxx, 1.0f);
+
+
+			row.data[0] = v0;
+			row.data[1] = v1;
+			row.data[2] = v2;
+			row.data[3] = -cloudPoint.z * v1 + cloudPoint.y * v2;
+			row.data[4] =  cloudPoint.z * v0 - cloudPoint.x * v2;
+			row.data[5] = -cloudPoint.y * v0 + cloudPoint.x * v1;
+			row.inliers = 1.0f;
+		}
+
+	}
+	else
+	{
+	    row.data[0] = row.data[1] = row.data[2] = row.data[3] = row.data[4] = row.data[5] = row.data[6] = row.inliers = 0.f;
+	}
+
+	//imageStore(outputTestImage, pix, outData); 
+
+	outputBuffer[pix.y * imSize.x + pix.x] = row;
+
+
+}
