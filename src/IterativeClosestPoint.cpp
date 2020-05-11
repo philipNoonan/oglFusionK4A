@@ -5,45 +5,33 @@ namespace rgbd
 	splatterICP::splatterICP() {};
 	splatterICP::~splatterICP() {};
 
-	void splatterICP::loadShaders(std::map<std::string, const gl::Shader::Ptr> &progs,
+	void splatterICP::loadShaders(
 		const std::string &folderPath
 	)
 	{
-		progs.insert(std::make_pair("BilateralFilter", std::make_shared<gl::Shader>(folderPath + "BilateralFilter.comp")));
-		progs.insert(std::make_pair("CASFilter", std::make_shared<gl::Shader>(folderPath + "contrastAdaptiveSharpening.comp")));
-		progs.insert(std::make_pair("alignDepthColor", std::make_shared<gl::Shader>(folderPath + "alignDepthColor.comp")));
-		progs.insert(std::make_pair("CalcVertexMap", std::make_shared<gl::Shader>(folderPath + "CalcVertexMap.comp")));
-		progs.insert(std::make_pair("CalcNormalMap", std::make_shared<gl::Shader>(folderPath + "CalcNormalMap.comp")));
+
+		progs.insert(std::make_pair("p2pTrack", std::make_shared<gl::Shader>(folderPath + "p2pTrack.comp")));
+		progs.insert(std::make_pair("p2pReduce", std::make_shared<gl::Shader>(folderPath + "p2pReduce.comp")));
+
 		progs.insert(std::make_pair("VirtualMapGeneration", std::make_shared<gl::Shader>(folderPath + "VirtualMapGeneration.vert", folderPath + "VirtualMapGeneration.frag")));
 		progs.insert(std::make_pair("ProjectiveDataAssoc", std::make_shared<gl::Shader>(folderPath + "ProjectiveDataAssoc.comp")));
 		progs.insert(std::make_pair("MultiplyMatrices", std::make_shared<gl::Shader>(folderPath + "MultiplyMatrices.comp")));
-		progs.insert(std::make_pair("DownSamplingC", std::make_shared<gl::Shader>(folderPath + "DownSamplingC.comp")));
-		progs.insert(std::make_pair("DownSamplingD", std::make_shared<gl::Shader>(folderPath + "DownSamplingD.comp")));
-		progs.insert(std::make_pair("DownSamplingV", std::make_shared<gl::Shader>(folderPath + "DownSamplingV.comp")));
-		progs.insert(std::make_pair("DownSamplingN", std::make_shared<gl::Shader>(folderPath + "DownSamplingN.comp")));
 		progs.insert(std::make_pair("IndexMapGeneration", std::make_shared<gl::Shader>(folderPath + "IndexMapGeneration.vert", folderPath + "IndexMapGeneration.frag")));
 
-		//progs.insert(std::make_pair("IndexMapGeneration", std::make_shared<gl::Shader>(folderPath + "IndexMapGeneration.comp")));
 		progs.insert(std::make_pair("GlobalMapUpdate", std::make_shared<gl::Shader>(folderPath + "GlobalMapUpdate.comp")));
 		progs.insert(std::make_pair("SurfaceSplatting", std::make_shared<gl::Shader>(folderPath + "SurfaceSplatting.vert", folderPath + "SurfaceSplatting.frag")));
 		progs.insert(std::make_pair("UnnecessaryPointRemoval", std::make_shared<gl::Shader>(folderPath + "UnnecessaryPointRemoval.comp")));
-		progs.insert(std::make_pair("p2pTrack", std::make_shared<gl::Shader>(folderPath + "p2pTrack.comp")));
-		progs.insert(std::make_pair("p2pReduce", std::make_shared<gl::Shader>(folderPath + "p2pReduce.comp")));
-		progs.insert(std::make_pair("rgbOdometry", std::make_shared<gl::Shader>(folderPath + "rgbOdometry.comp")));
-		progs.insert(std::make_pair("rgbOdometryReduce", std::make_shared<gl::Shader>(folderPath + "rgbOdometryReduce.comp")));
-		progs.insert(std::make_pair("rgbOdometryStep", std::make_shared<gl::Shader>(folderPath + "rgbOdometryStep.comp")));
-		progs.insert(std::make_pair("rgbOdometryStepReduce", std::make_shared<gl::Shader>(folderPath + "rgbOdometryStepReduce.comp")));
+
+
 	}
 
 	void splatterICP::init(
 		int width,
 		int height,
-		const glm::mat4 &K,
-		const std::map<std::string, const gl::Shader::Ptr> &programs
+		const glm::mat4 &K
 	)
 	{
 
-		progs = programs;
 		//: virtualFrameRenderer(width, height, K, progs.at("VirtualMapGeneration")),
 		//	dataAssoc(width, height, progs),
 		//	progs{ { "p2pTrack", progs.at("p2pTrack") },
@@ -79,7 +67,6 @@ namespace rgbd
 
 	void splatterICP::track(
 		const rgbd::Frame &currentFrame,
-		const rgbd::Frame &virtualFrame,
 		glm::mat4 &T,
 		int level
 	)
@@ -99,8 +86,8 @@ namespace rgbd
 		currentFrame.getVertexMap(0)->bindImage(0, level, GL_READ_ONLY);
 		currentFrame.getNormalMap(0)->bindImage(1, level, GL_READ_ONLY);
 
-		virtualFrame.getVertexMap(0)->bindImage(2, 0, GL_READ_ONLY);
-		virtualFrame.getNormalMap(0)->bindImage(3, 0, GL_READ_ONLY);
+		currentFrame.getVirtualVertexMap(0)->bindImage(2, 0, GL_READ_ONLY);
+		currentFrame.getVirtualNormalMap(0)->bindImage(3, 0, GL_READ_ONLY);
 
 		currentFrame.getTrackMap()->bindImage(4, level, GL_WRITE_ONLY);
 		currentFrame.getTestMap()->bindImage(5, level, GL_WRITE_ONLY);
@@ -316,7 +303,7 @@ namespace rgbd
 			std::vector<float> b, C;
 
 			// track
-			track(currentFrame, virtualFrame, T, level);
+			track(currentFrame, T, level);
 
 
 			// then reduce

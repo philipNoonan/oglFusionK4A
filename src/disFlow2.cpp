@@ -409,7 +409,7 @@ namespace rgbd
 			//compHeight = GLHelper::divup(nextFlowMap->getHeight() >> (level), 32);
 			//glDispatchCompute(compWidth, compHeight, 1);
 
-			this->progs["variationalRefine"]->disuse();
+			//this->progs["variationalRefine"]->disuse();
 
 	
 

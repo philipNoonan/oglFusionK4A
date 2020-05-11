@@ -230,149 +230,149 @@ void gFlow::setFrameTexture(gl::Texture::Ptr inTex)
 
 
 
-void gFlow::setDepthTexture(std::vector<rs2::frame_queue> depthQ)
-{
-	rs2::frame depthFrame;
-
-	if (depthQ[m_cameraDevice].poll_for_frame(&depthFrame)) //FIRST CAMERA ONLY
-	{
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, m_textureDepth);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_RED, GL_UNSIGNED_SHORT, depthFrame.get_data());
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-}
-
-void gFlow::setColorTexture(std::vector<rs2::frame_queue> colorQ, cv::Mat &colorMat)
-{
-	rs2::frame colorFrame;
-
-	if (colorQ[m_cameraDevice].poll_for_frame(&colorFrame)) //FIRST CAMERA ONLY
-	{
-
-		/*glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, m_textureI1);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_BGR, GL_UNSIGNED_BYTE, colorFrame.get_data());
-		glGenerateMipmap(GL_TEXTURE_2D);*/
-
-		if (colorFrame != NULL)
-		{
-			colorMat = cv::Mat(m_texture_height, m_texture_width, CV_8UC3, (void*)colorFrame.get_data());
-			//std::memcpy(colorMat.ptr(), (void*)colorFrame.get_data(), m_texture_height * m_texture_width * 3);
-			//cv::imshow("col", colorMat);
-			//cv::waitKey(1);
-		}
-
-		//if (firstFrame)
-		//{
-
-		//	glCopyImageSubData(m_textureI1, GL_TEXTURE_2D, 0, 0, 0, 0,
-		//		m_textureI0, GL_TEXTURE_2D, 0, 0, 0, 0,
-		//		m_texture_width, m_texture_height, 1);
-		//	firstFrame = false;
-
-		//	//I1im.copyTo(I0im);
-		//}
-
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_2D, m_textureI0);
-		//glGenerateMipmap(GL_TEXTURE_2D);
-
-		//glMemoryBarrier(GL_ALL_BARRIER_BITS);
-
-	}
-}
-
-void gFlow::setInfraTexture(std::vector<rs2::frame_queue> infraQ, cv::Mat &infraMat)
-{
-	rs2::frame infraFrame;
-
-	if (infraQ[m_cameraDevice].poll_for_frame(&infraFrame)) //FIRST CAMERA ONLY
-	{
-
-		//glActiveTexture(GL_TEXTURE1);
-		//glBindTexture(GL_TEXTURE_2D, m_textureI1);
-		//glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_BGR, GL_UNSIGNED_BYTE, colorFrame.get_data());
-		//glGenerateMipmap(GL_TEXTURE_2D);
-
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, m_textureI1);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_RED, GL_UNSIGNED_BYTE, infraFrame.get_data());
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-		if (infraFrame != NULL)
-		{
-			infraMat = cv::Mat(m_texture_height, m_texture_width, CV_8UC1, (void*)infraFrame.get_data());
-			infraMat.copyTo(tempMat);
-			//cv::imshow("col", colorMat);
-			//cv::waitKey(1);
-		}
-
-		if (firstFrame)
-		{
-
-			glCopyImageSubData(m_textureI1, GL_TEXTURE_2D, 0, 0, 0, 0,
-				m_textureI0, GL_TEXTURE_2D, 0, 0, 0, 0,
-				m_texture_width, m_texture_height, 1);
-			firstFrame = false;
-
-			//I1im.copyTo(I0im);
-		}
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, m_textureI0);
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-		glMemoryBarrier(GL_ALL_BARRIER_BITS);
-
-	}
-}
-
-
-void gFlow::setTexture(std::vector<rs2::frame_queue> colorQ, cv::Mat &colorMat)
-{
-	rs2::frame colorFrame;
-
-	if (colorQ[m_cameraDevice].poll_for_frame(&colorFrame)) //FIRST CAMERA ONLY
-	{
-
-		//glActiveTexture(GL_TEXTURE1);
-		//glBindTexture(GL_TEXTURE_2D, m_textureI1);
-		//glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_BGR, GL_UNSIGNED_BYTE, colorFrame.get_data());
-		//glGenerateMipmap(GL_TEXTURE_2D);
-
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, m_textureI1);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_RED, GL_UNSIGNED_BYTE, colorFrame.get_data());
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-
-		if (colorFrame != NULL)
-		{
-			//colorMat = cv::Mat(m_texture_height, m_texture_width, CV_8UC3, (void*)colorFrame.get_data());
-			//cv::imshow("col", colorMat);
-			//cv::waitKey(1);
-		}
-
-		if (firstFrame)
-		{
-
-			glCopyImageSubData(m_textureI1, GL_TEXTURE_2D, 0, 0, 0, 0,
-				m_textureI0, GL_TEXTURE_2D, 0, 0, 0, 0,
-				m_texture_width, m_texture_height, 1);
-			firstFrame = false;
-
-			//I1im.copyTo(I0im);
-		}
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, m_textureI0);
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-		glMemoryBarrier(GL_ALL_BARRIER_BITS);
-
-	}
-}
+//void gFlow::setDepthTexture(std::vector<rs2::frame_queue> depthQ)
+//{
+//	rs2::frame depthFrame;
+//
+//	if (depthQ[m_cameraDevice].poll_for_frame(&depthFrame)) //FIRST CAMERA ONLY
+//	{
+//		glActiveTexture(GL_TEXTURE1);
+//		glBindTexture(GL_TEXTURE_2D, m_textureDepth);
+//		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_RED, GL_UNSIGNED_SHORT, depthFrame.get_data());
+//		glGenerateMipmap(GL_TEXTURE_2D);
+//	}
+//}
+//
+//void gFlow::setColorTexture(std::vector<rs2::frame_queue> colorQ, cv::Mat &colorMat)
+//{
+//	rs2::frame colorFrame;
+//
+//	if (colorQ[m_cameraDevice].poll_for_frame(&colorFrame)) //FIRST CAMERA ONLY
+//	{
+//
+//		/*glActiveTexture(GL_TEXTURE1);
+//		glBindTexture(GL_TEXTURE_2D, m_textureI1);
+//		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_BGR, GL_UNSIGNED_BYTE, colorFrame.get_data());
+//		glGenerateMipmap(GL_TEXTURE_2D);*/
+//
+//		if (colorFrame != NULL)
+//		{
+//			colorMat = cv::Mat(m_texture_height, m_texture_width, CV_8UC3, (void*)colorFrame.get_data());
+//			//std::memcpy(colorMat.ptr(), (void*)colorFrame.get_data(), m_texture_height * m_texture_width * 3);
+//			//cv::imshow("col", colorMat);
+//			//cv::waitKey(1);
+//		}
+//
+//		//if (firstFrame)
+//		//{
+//
+//		//	glCopyImageSubData(m_textureI1, GL_TEXTURE_2D, 0, 0, 0, 0,
+//		//		m_textureI0, GL_TEXTURE_2D, 0, 0, 0, 0,
+//		//		m_texture_width, m_texture_height, 1);
+//		//	firstFrame = false;
+//
+//		//	//I1im.copyTo(I0im);
+//		//}
+//
+//		//glActiveTexture(GL_TEXTURE0);
+//		//glBindTexture(GL_TEXTURE_2D, m_textureI0);
+//		//glGenerateMipmap(GL_TEXTURE_2D);
+//
+//		//glMemoryBarrier(GL_ALL_BARRIER_BITS);
+//
+//	}
+//}
+//
+//void gFlow::setInfraTexture(std::vector<rs2::frame_queue> infraQ, cv::Mat &infraMat)
+//{
+//	rs2::frame infraFrame;
+//
+//	if (infraQ[m_cameraDevice].poll_for_frame(&infraFrame)) //FIRST CAMERA ONLY
+//	{
+//
+//		//glActiveTexture(GL_TEXTURE1);
+//		//glBindTexture(GL_TEXTURE_2D, m_textureI1);
+//		//glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_BGR, GL_UNSIGNED_BYTE, colorFrame.get_data());
+//		//glGenerateMipmap(GL_TEXTURE_2D);
+//
+//		glActiveTexture(GL_TEXTURE1);
+//		glBindTexture(GL_TEXTURE_2D, m_textureI1);
+//		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_RED, GL_UNSIGNED_BYTE, infraFrame.get_data());
+//		glGenerateMipmap(GL_TEXTURE_2D);
+//
+//		if (infraFrame != NULL)
+//		{
+//			infraMat = cv::Mat(m_texture_height, m_texture_width, CV_8UC1, (void*)infraFrame.get_data());
+//			infraMat.copyTo(tempMat);
+//			//cv::imshow("col", colorMat);
+//			//cv::waitKey(1);
+//		}
+//
+//		if (firstFrame)
+//		{
+//
+//			glCopyImageSubData(m_textureI1, GL_TEXTURE_2D, 0, 0, 0, 0,
+//				m_textureI0, GL_TEXTURE_2D, 0, 0, 0, 0,
+//				m_texture_width, m_texture_height, 1);
+//			firstFrame = false;
+//
+//			//I1im.copyTo(I0im);
+//		}
+//
+//		glActiveTexture(GL_TEXTURE0);
+//		glBindTexture(GL_TEXTURE_2D, m_textureI0);
+//		glGenerateMipmap(GL_TEXTURE_2D);
+//
+//		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+//
+//	}
+//}
+//
+//
+//void gFlow::setTexture(std::vector<rs2::frame_queue> colorQ, cv::Mat &colorMat)
+//{
+//	rs2::frame colorFrame;
+//
+//	if (colorQ[m_cameraDevice].poll_for_frame(&colorFrame)) //FIRST CAMERA ONLY
+//	{
+//
+//		//glActiveTexture(GL_TEXTURE1);
+//		//glBindTexture(GL_TEXTURE_2D, m_textureI1);
+//		//glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_BGR, GL_UNSIGNED_BYTE, colorFrame.get_data());
+//		//glGenerateMipmap(GL_TEXTURE_2D);
+//
+//		glActiveTexture(GL_TEXTURE1);
+//		glBindTexture(GL_TEXTURE_2D, m_textureI1);
+//		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_texture_width, m_texture_height, GL_RED, GL_UNSIGNED_BYTE, colorFrame.get_data());
+//		glGenerateMipmap(GL_TEXTURE_2D);
+//
+//
+//		if (colorFrame != NULL)
+//		{
+//			//colorMat = cv::Mat(m_texture_height, m_texture_width, CV_8UC3, (void*)colorFrame.get_data());
+//			//cv::imshow("col", colorMat);
+//			//cv::waitKey(1);
+//		}
+//
+//		if (firstFrame)
+//		{
+//
+//			glCopyImageSubData(m_textureI1, GL_TEXTURE_2D, 0, 0, 0, 0,
+//				m_textureI0, GL_TEXTURE_2D, 0, 0, 0, 0,
+//				m_texture_width, m_texture_height, 1);
+//			firstFrame = false;
+//
+//			//I1im.copyTo(I0im);
+//		}
+//
+//		glActiveTexture(GL_TEXTURE0);
+//		glBindTexture(GL_TEXTURE_2D, m_textureI0);
+//		glGenerateMipmap(GL_TEXTURE_2D);
+//
+//		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+//
+//	}
+//}
 
 void gFlow::setTexture(unsigned char * imageArray, int nChn)
 {

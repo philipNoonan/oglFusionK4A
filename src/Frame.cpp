@@ -26,16 +26,17 @@ namespace rgbd
 		width = wD; // CHECK THIS!
 		height = hD; // CHECK THIS!
 
+		depthToColor = glm::mat4(1);
 
 		int idx = 0;
 		for (int i = 0; i < 3; i++) {
 			for (int j = 0; j < 3; j++) {
-				depthToColor[i][j] = cal.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR].rotation[idx];
+				depthToColor[j][i] = cal.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR].rotation[idx];
 				idx++;
 			}
 		}
 		for (int i = 0; i < 3; i++) {
-			depthToColor[3][i] = cal.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR].translation[i];
+			depthToColor[3][i] = cal.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR].translation[i] * 0.001f; // depthscale to meters
 		}
 		K = glm::mat4(1.0f);
 
@@ -54,6 +55,11 @@ namespace rgbd
 		frameData[0].colorMap->createStorage(numberOfLevelsColor, wC, hC, 4, GL_RGBA8, gl::TextureType::COLOR, 1);
 		frameData[0].colorMap->setFiltering(GL_LINEAR, GL_LINEAR_MIPMAP_NEAREST);
 		frameData[0].colorMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
+
+		frameData[0].virtualColorMap = std::make_shared<gl::Texture>();
+		frameData[0].virtualColorMap->createStorage(numberOfLevelsColor, wC, hC, 4, GL_RGBA8, gl::TextureType::COLOR, 1);
+		frameData[0].virtualColorMap->setFiltering(GL_LINEAR, GL_LINEAR_MIPMAP_NEAREST);
+		frameData[0].virtualColorMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
 
 		frameData[0].colorPreviousMap = std::make_shared<gl::Texture>();
 		frameData[0].colorPreviousMap->createStorage(numberOfLevelsColor, wC, hC, 4, GL_RGBA8, gl::TextureType::COLOR, 1);
@@ -74,6 +80,11 @@ namespace rgbd
 		frameData[0].depthMap->createStorage(numberOfLevelsDepth, wD, hD, 1, GL_R32F, gl::TextureType::FLOAT32, 0);
 		frameData[0].depthMap->setFiltering(GL_NEAREST, GL_NEAREST);
 		frameData[0].depthMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
+
+		frameData[0].virtualDepthMap = std::make_shared<gl::Texture>();
+		frameData[0].virtualDepthMap->createStorage(numberOfLevelsDepth, wD, hD, 1, GL_R32F, gl::TextureType::FLOAT32, 0);
+		frameData[0].virtualDepthMap->setFiltering(GL_NEAREST, GL_NEAREST);
+		frameData[0].virtualDepthMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
 
 		frameData[0].vertexMap = std::make_shared<gl::Texture>();
 		frameData[0].vertexMap->createStorage(numberOfLevelsDepth, wD, hD, 4, GL_RGBA32F, gl::TextureType::FLOAT32, 0);
@@ -656,6 +667,12 @@ void Frame::update(
 	{
 		return frameData[lv].colorMap;
 	}
+
+	gl::Texture::Ptr Frame::getVirtualColorMap(int lv) const
+	{
+		return frameData[lv].virtualColorMap;
+	}
+
 	gl::Texture::Ptr Frame::getColorPreviousMap(int lv) const
 	{
 		return frameData[lv].colorPreviousMap;
@@ -674,6 +691,11 @@ void Frame::update(
 	gl::Texture::Ptr Frame::getDepthMap(int lv) const
 	{
 		return frameData[lv].depthMap;
+	}
+
+	gl::Texture::Ptr Frame::getVirtualDepthMap(int lv) const
+	{
+		return frameData[lv].virtualDepthMap;
 	}
 
 	gl::Texture::Ptr Frame::getDepthPreviousMap(int lv) const

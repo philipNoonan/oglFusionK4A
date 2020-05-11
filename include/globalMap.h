@@ -40,8 +40,6 @@ namespace rgbd
 	class GlobalMap
 	{
 	private:
-		const int width;
-		const int height;
 
 		GLuint mapSize;
 		int buffSwitch;
@@ -57,12 +55,18 @@ namespace rgbd
 		std::array<gl::ShaderStorageBuffer<GlobalMapData>, 2> ssbo;
 
 	public:
-		GlobalMap(
+		GlobalMap();
+
+		void loadShaders(
+			const std::string& folderPath
+		);
+
+		void init(
 			int width,
 			int height,
-			const glm::mat4 &K,
-			const std::map<std::string, const gl::Shader::Ptr> &progs
+			const glm::mat4& K
 		);
+
 		~GlobalMap();
 
 		void genIndexMap(

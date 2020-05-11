@@ -52,15 +52,14 @@ namespace rgbd
 		splatterICP();
 		~splatterICP();
 
-		void loadShaders(std::map<std::string, const gl::Shader::Ptr> &progs,
+		void loadShaders(
 			const std::string &folderPath
 		);
 
 		void init(
 			int width,
 			int height,
-			const glm::mat4 &K,
-			const std::map<std::string, const gl::Shader::Ptr> &progs
+			const glm::mat4 &K
 		);
 		
 		void paramToMat(
@@ -70,7 +69,6 @@ namespace rgbd
 		
 		void track(
 			const rgbd::Frame &currentFrame,
-			const rgbd::Frame &virtualFrame,
 			glm::mat4 &T,
 			int level
 		);

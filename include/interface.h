@@ -48,7 +48,8 @@ public:
 	void init(k4a_depth_mode_t depthMode, k4a_color_resolution_t colorResolution);
 	bool startCamera();
 	bool getImages(k4a::image& depthBuffer, k4a::image& colorBuffer, k4a::image& infraImage);
-	
+	bool getIMU(k4a_imu_sample_t& imuSample);
+
 	k4a::calibration getCalibration() {
 		return calibration;
 	}

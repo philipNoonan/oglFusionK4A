@@ -20,6 +20,8 @@
 
 #include "camera.hpp"
 
+#include "trackIMU.h"
+
 #include "kRender.h"
 #include "renderHelpers.h"
 
@@ -84,7 +86,7 @@ private:
 	Camera* camera;
 
 	rgbd::GlobalVolume volume;
-	rgbd::GlobalMap::Ptr gMap;
+	rgbd::GlobalMap gMap;
 
 	glm::mat4 initPose;
 	glm::mat4 currPose = glm::mat4(1.0f);
@@ -97,6 +99,8 @@ private:
 	rgbd::p2pICP p2picp;
 	rgbd::splatterICP splaticp;
 	rgbd::p2vICP p2vicp;
+
+	rgbd::imuTrack imutrack;
 
 	rgbd::DisFlow disflow;
 
@@ -112,6 +116,15 @@ private:
 	cv::Mat colorMat;
 	std::vector<unsigned char> colorVec;
 
+	k4a::image depthImage;
+	k4a::image colorImage;
+	k4a::image infraImage;
+
+	k4a_imu_sample_t imuValues;
+
+	bool frameReady = false;
+	bool imuReady = false;
+
 	bool poseFound = false;
 	bool lost = false;
 	int trackingCount = 0;
@@ -120,11 +133,12 @@ private:
 
 	void getIncrementalTransform();
 	bool runDTAM(glm::mat4 &prePose);
-	//bool runRGBOdo(glm::mat4 &prePose);
+	bool runRGBOdo(glm::mat4 &prePose);
 	//bool runOdoP2P(glm::mat4 &prePose);
-	//bool runSLAM(glm::mat4 &prePose);
+	bool runSLAM(glm::mat4 &prePose);
 	bool runP2P(glm::mat4 &prePose);
 	bool runP2V(glm::mat4 &prePose);
+	bool runImuSLAM(k4a_imu_sample_t &imuValues);
 	//bool runOdoSplat(
 	//	glm::mat4 &prePose
 	//);
@@ -135,6 +149,8 @@ private:
 	void initRGBodo();
 	void initP2PFusion();
 	void initP2VFusion();
+	void initSplatterFusion();
+
 	int getRenderOptions(bool depth, bool normal, bool color, bool infra, bool flow);
 	void renderGlobal(bool reset);
 
@@ -273,6 +289,11 @@ private:
 	std::vector<glm::ivec2> colorFrameSize;
 	std::vector<glm::ivec2> infraFrameSize;
 
+	int depthWidth = 640;
+	int depthHeight = 576;
+	int colorWidth = 1280;
+	int colorHeight = 720;
+
 
 
 	//unsigned char colorArray[4 * 848 * 480];
@@ -350,6 +371,7 @@ private:
 	bool trackDepthToVolume = true;
 	bool useSplatter = false;
 	bool useSO3 = false;
+	bool useIMU = false;
 	bool useSE3 = false;
 	bool useODOP2P = false;
 	bool useODOSplat = false;

@@ -5,16 +5,24 @@ namespace rgbd
 	const unsigned int GlobalMapConstParam::MAX_MAP_SIZE = 5000000;
 	const float GlobalMapConstParam::CSTABLE = 10.0f;
 
-	GlobalMap::GlobalMap(
+	GlobalMap::GlobalMap() {};
+
+
+	void GlobalMap::loadShaders(
+		const std::string& folderPath
+	)
+	{
+		progs.insert(std::make_pair("IndexMapGeneration", std::make_shared<gl::Shader>(folderPath + "IndexMapGeneration.vert", folderPath + "IndexMapGeneration.frag")));
+		progs.insert(std::make_pair("GlobalMapUpdate", std::make_shared<gl::Shader>(folderPath + "GlobalMapUpdate.comp")));
+		progs.insert(std::make_pair("SurfaceSplatting", std::make_shared<gl::Shader>(folderPath + "SurfaceSplatting.vert", folderPath + "SurfaceSplatting.frag")));
+		progs.insert(std::make_pair("UnnecessaryPointRemoval", std::make_shared<gl::Shader>(folderPath + "UnnecessaryPointRemoval.comp")));
+	}
+
+	void GlobalMap::init(
 		int width,
 		int height,
-		const glm::mat4 &K,
-		const std::map<std::string, const gl::Shader::Ptr> &progs
-	) : width(width), height(height),
-		progs{ { "IndexMapGeneration", progs.at("IndexMapGeneration") },
-		{ "GlobalMapUpdate", progs.at("GlobalMapUpdate") },
-		{ "UnnecessaryPointRemoval", progs.at("UnnecessaryPointRemoval") },
-		{ "SurfaceSplatting", progs.at("SurfaceSplatting") } }
+		const glm::mat4& K
+	)
 	{
 		indexMap = std::make_shared<gl::Texture>();
 		indexMap->create(0, width * 4, height * 4, 1, gl::TextureType::FLOAT32);
@@ -177,7 +185,7 @@ namespace rgbd
 
 		int timestamp = srcFrame.getDepthFrameCount();
 
-		std::cout << "ts " << mapSize << std::endl;
+		//std::cout << "ts " << mapSize << std::endl;
 
 		progs["GlobalMapUpdate"]->use();
 		progs["GlobalMapUpdate"]->setUniform("T", T);
@@ -197,8 +205,7 @@ namespace rgbd
 		atomic[buffSwitch].bindBase(0);
 		ssbo[buffSwitch].bindBase(0);
 
-		glDispatchCompute(GLHelper::divup(width, 32), GLHelper::divup(height, 32), 1);
-
+		glDispatchCompute(GLHelper::divup(srcFrame.getWidth(), 32), GLHelper::divup(srcFrame.getWidth(), 32), 1);
 
 		atomic[buffSwitch].read(&mapSize, 0, 1);
 		progs["GlobalMapUpdate"]->disuse();
@@ -212,7 +219,6 @@ namespace rgbd
 		//GLuint64 elapsed;
 		//glGetQueryObjectui64vEXT(query, GL_QUERY_RESULT, &elapsed);
 		////std::cout << "gmu time : " << elapsed / 1000000.0 << std::endl;
-
 	}
 
 	void GlobalMap::removeUnnecessaryPoints(int timestamp)
@@ -270,10 +276,10 @@ namespace rgbd
 
 
 
-		virtualFrameFBO.attach(dstFrame.getVertexMap(), 0);
-		virtualFrameFBO.attach(dstFrame.getNormalMap(), 1);
-		virtualFrameFBO.attach(dstFrame.getDepthMap(), 2);
-		virtualFrameFBO.attach(dstFrame.getColorMap(), 3);
+		virtualFrameFBO.attach(dstFrame.getVirtualVertexMap(), 0);
+		virtualFrameFBO.attach(dstFrame.getVirtualNormalMap(), 1);
+		virtualFrameFBO.attach(dstFrame.getVirtualDepthMap(), 2);
+		virtualFrameFBO.attach(dstFrame.getVirtualColorMap(), 3);
 
 		std::vector<GLenum> drawBuffs = virtualFrameFBO.getDrawBuffers();
 
@@ -408,9 +414,9 @@ namespace rgbd
 			outFile.write((char*)&outputVerts[i].y, sizeof(float));
 			outFile.write((char*)&outputVerts[i].z, sizeof(float));
 
-			unsigned char r = int(outputColor[i].x * 255.0f);
+			unsigned char b = int(outputColor[i].x * 255.0f);
 			unsigned char g = int(outputColor[i].y * 255.0f);
-			unsigned char b = int(outputColor[i].z * 255.0f);
+			unsigned char r = int(outputColor[i].z * 255.0f);
 
 			outFile.write((char*)&r, sizeof(unsigned char));
 			outFile.write((char*)&g, sizeof(unsigned char));

@@ -36,15 +36,9 @@ namespace rgbd
 		ssboReductionOutput.unbind();
 	}
 
-	void p2vICP::track(
-		GLuint gVolID,
-		const rgbd::Frame &currentFrame,
-		glm::vec3 volDim,
-		glm::vec3 volSize,
-		glm::mat4 &T,
-		int level
-	)
+	void p2vICP::track(GLuint gVolID, const rgbd::Frame &currentFrame, glm::vec3 volDim, glm::vec3 volSize, glm::mat4 &T, int level)
 	{
+
 
 		glm::mat4 invT = glm::inverse(T);
 

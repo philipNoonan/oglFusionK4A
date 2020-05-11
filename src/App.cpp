@@ -25,14 +25,7 @@ App::~App()
 
 
 
-void App::initGradient()
-{
-	std::map<std::string, const gl::Shader::Ptr> progsForGrdient;
-	std::string pathToShaders("./shaders/");
-	dtam.loadShaders(progsForGrdient, pathToShaders);
 
-	//dtam.init(frame[rgbd::FRAME::CURRENT].getWidth(), frame[rgbd::FRAME::CURRENT].getHeight(), progsForGrdient);
-}
 
 void App::initSplatter()
 {
@@ -42,9 +35,9 @@ void App::initSplatter()
 	//K[2][0] = cameraInterface.getDepthIntrinsics(0).cx;
 	//K[2][1] = cameraInterface.getDepthIntrinsics(0).cy;
 
-	std::map<std::string, const gl::Shader::Ptr> progsForSlam;
-	std::string pathToShaders("./shaders/");
-	splaticp.loadShaders(progsForSlam, pathToShaders);
+	//std::map<std::string, const gl::Shader::Ptr> progsForSlam;
+	//std::string pathToShaders("./shaders/");
+	//splaticp.loadShaders(progsForSlam, pathToShaders);
 
 	//for (auto &f : frame)
 	//{
@@ -75,31 +68,21 @@ void App::initSplatter()
 	//			  K,
 	//			  progsForSlam);
 
-	if (!gMap)
-	{
+	//if (!gMap)
+	//{
 		//gMap = std::make_shared<rgbd::GlobalMap>(frame[rgbd::FRAME::CURRENT].getWidth(),
 		//										 frame[rgbd::FRAME::CURRENT].getHeight(),
 		//										 K,
 		//										 progsForSlam);
-	}
+	//}
 
-	//glEnable(GL_DEPTH_TEST);
-	//glEnable(GL_CULL_FACE);
 
-	//gMap->genVirtualFrame(frame[rgbd::FRAME::VIRTUAL], glm::mat4(1.0f));
-	//frame[rgbd::FRAME::VIRTUAL].update();
-
-	//gMap->updateGlobalMap(frame[rgbd::FRAME::CURRENT], true, glm::mat4(1.0f));
-	//gMap->removeUnnecessaryPoints(0);
-	//gMap->genIndexMap(glm::mat4(1.0f));
-
-	//glDisable(GL_CULL_FACE);
 
 }
 
 void App::clearSplatter()
 {
-	gMap->clearAll();
+	gMap.clearAll();
 	currPose = glm::mat4(1.0f);
 	//slam.clear();
 	//for (auto &f : frame)
@@ -114,10 +97,19 @@ void App::initDTAM()
 {
 	std::map<std::string, const gl::Shader::Ptr> progsForDtam;
 	std::string pathToShaders("./shaders/");
-	gradFilter.loadShaders(progsForDtam, pathToShaders);
+	dtam.loadShaders(progsForDtam, pathToShaders);
 
-	//gradFilter.init(frame[rgbd::FRAME::CURRENT].getWidth(), frame[rgbd::FRAME::CURRENT].getHeight(), progsForDtam);
+	dtam.init(frame.getWidth(), frame.getHeight(), progsForDtam);
 
+}
+
+void App::initGradient()
+{
+	std::map<std::string, const gl::Shader::Ptr> progsForGrdient;
+	std::string pathToShaders("./shaders/");
+	gradFilter.loadShaders(progsForGrdient, pathToShaders);
+
+	gradFilter.init(frame.getWidth(), frame.getHeight(), progsForGrdient);
 }
 
 void App::initRGBodo()
@@ -126,7 +118,7 @@ void App::initRGBodo()
 	std::string pathToShaders("./shaders/");
 	rgbodo.loadShaders(progsForDtam, pathToShaders);
 
-	//rgbodo.init(frame[rgbd::FRAME::CURRENT].getWidth(), frame[rgbd::FRAME::CURRENT].getHeight(), progsForDtam);
+	rgbodo.init(frame.getWidth(), frame.getHeight(), progsForDtam);
 
 
 
@@ -200,8 +192,8 @@ void App::initP2PFusion()
 
 void App::initP2VFusion()
 {
-	glm::mat4 K(1.0f);
-	/*K[0][0] = cameraInterface.getDepthIntrinsics(0).fx;
+	/*glm::mat4 K(1.0f);
+	K[0][0] = cameraInterface.getDepthIntrinsics(0).fx;
 	K[1][1] = cameraInterface.getDepthIntrinsics(0).fy;
 	K[2][0] = cameraInterface.getDepthIntrinsics(0).cx;
 	K[2][1] = cameraInterface.getDepthIntrinsics(0).cy;*/
@@ -222,6 +214,36 @@ void App::initP2VFusion()
 		normThresh
 	);
 
+}
+
+void App::initSplatterFusion() {
+
+	std::string pathToShaders("./shaders/");
+	splaticp.loadShaders(pathToShaders);
+
+	glm::mat4 K(1.0f);
+	k4a::calibration cal = cameraInterface.getCalibration();
+
+	K[0][0] = cal.depth_camera_calibration.intrinsics.parameters.param.fx;
+	K[1][1] = cal.depth_camera_calibration.intrinsics.parameters.param.fy;
+	K[2][0] = cal.depth_camera_calibration.intrinsics.parameters.param.cx;
+	K[2][1] = cal.depth_camera_calibration.intrinsics.parameters.param.cy;
+
+	splaticp.init(
+		frame.getWidth(),
+		frame.getHeight(),
+		K
+	);
+
+
+	gMap.loadShaders(pathToShaders);
+	
+	gMap.init(
+		frame.getWidth(),
+		frame.getHeight(),
+		K
+	);
+	
 }
 
 
@@ -272,17 +294,28 @@ bool App::runDTAM(
 	//	colorVec
 	//);
 	bool tracked = true;
-	/*so3Pose = dtam.calcDevicePose(
-		frame[rgbd::FRAME::CURRENT],
-		glm::vec4(cameraInterface.getColorIntrinsics(0).cx, cameraInterface.getColorIntrinsics(0).cy, cameraInterface.getColorIntrinsics(0).fx, cameraInterface.getColorIntrinsics(0).fy),
+
+	k4a::calibration cal = cameraInterface.getCalibration();
+
+	so3Pose = dtam.calcDevicePose(
+		frame,
+		glm::vec4(cal.color_camera_calibration.intrinsics.parameters.param.cx, cal.color_camera_calibration.intrinsics.parameters.param.cy, cal.color_camera_calibration.intrinsics.parameters.param.fx, cal.color_camera_calibration.intrinsics.parameters.param.fy),
 		so3Pose,
-		tracked);*/
+		tracked);
 
 	prePose = so3Pose;
 	if (!useSE3)
 	{
 		se3Pose = se3Pose * prePose;
 	}
+
+
+	if (integratingFlag)
+	{
+		volume.integrate(0, frame, se3Pose);
+	}
+
+	volume.raycast(frame, se3Pose);
 	
 	//currPose = currPose * so3Pose; // this way round
 
@@ -299,124 +332,128 @@ bool App::runDTAM(
 	return tracked;
 }
 
-//bool App::runRGBOdo(
-//	glm::mat4 &prePose)
-//{
-//	bool tracked = true; // CHECK THIS!
-//	//GLuint query;
-//	//glGenQueries(1, &query);
-//	//glBeginQuery(GL_TIME_ELAPSED, query);
-//
-//	//gradFilter.execute(frame[rgbd::FRAME::CURRENT].getColorFilteredMap(), 0, 0.52201f, 0.79451f, true);
-//	gradFilter.execute(frame[rgbd::FRAME::CURRENT].getColorFilteredMap(), 0, 3.0f, 10.0f, false);
-//
-//
-//
-//
-//	rgbodo.performColorTracking(frame[rgbd::FRAME::CURRENT], 
-//		frame[rgbd::FRAME::VIRTUAL], 
-//		gradFilter.getGradientMap(), 
-//		prePose, 
-//		glm::vec4(cameraInterface.getDepthIntrinsics(0).cx, 
-//			cameraInterface.getDepthIntrinsics(0).cy, 
-//			cameraInterface.getDepthIntrinsics(0).fx, 
-//			cameraInterface.getDepthIntrinsics(0).fy));
-//
-//	se3Pose = se3Pose * prePose;
-//
-//
-//	//glEndQuery(GL_TIME_ELAPSED);
-//	//GLuint available = 0;
-//	//while (!available) {
-//	//	glGetQueryObjectuiv(query, GL_QUERY_RESULT_AVAILABLE, &available);
-//	//}
-//	//// elapsed time in nanoseconds
-//	//GLuint64 elapsed;
-//	//glGetQueryObjectui64vEXT(query, GL_QUERY_RESULT, &elapsed);
-//	//std::cout << "se3 time : " << elapsed / 1000000.0 << std::endl; // 1 ms for 1 iter at full reso
-//
-//	//std::cout << " se3\n " << glm::to_string(se3Pose) << std::endl;
-//
-//
-//	return tracked;
-//}
+bool App::runRGBOdo(
+	glm::mat4 &prePose)
+{
+	bool tracked = true; // CHECK THIS!
+	//GLuint query;
+	//glGenQueries(1, &query);
+	//glBeginQuery(GL_TIME_ELAPSED, query);
 
-//bool App::runSLAM(
-//	glm::mat4 &prePose)
-//{
-//	bool tracked = true;
-//
-//	//glm::mat4 pose = currPose;
-//	glm::mat4 T = glm::mat4(1.0f);
-//
-//	float AE;
-//	uint32_t icpCount;
-//
-//	for (int lvl = rgbd::ICPConstParam::MAX_LEVEL - 1; lvl >= 0; lvl--)
-//	{
-//
-//		for (int loop = 0; loop < rgbd::ICPConstParam::MAX_ITR_NUM[lvl]; loop++)
-//		{
-//			Eigen::Matrix<float, 6, 6, Eigen::RowMajor> A_icp;
-//			Eigen::Matrix<float, 6, 1> b_icp;
-//
-//			splaticp.track(frame[rgbd::FRAME::CURRENT],
-//				frame[rgbd::FRAME::VIRTUAL],
-//				T,
-//				lvl
-//			);
-//
-//			splaticp.reduce(
-//				glm::ivec2(frame[rgbd::FRAME::CURRENT].getWidth(lvl),
-//					       frame[rgbd::FRAME::CURRENT].getHeight(lvl))
-//			);
-//
-//			splaticp.getReduction(
-//				A_icp.data(),
-//				b_icp.data(),
-//				AE,
-//				icpCount);
-//
-//			Eigen::Matrix<double, 6, 1> result;
-//			Eigen::Matrix<double, 6, 6, Eigen::RowMajor> dA_icp = A_icp.cast<double>();
-//			Eigen::Matrix<double, 6, 1> db_icp = b_icp.cast<double>();
-//
-//			result = dA_icp.ldlt().solve(db_icp);
-//
-//			glm::mat4 delta = glm::eulerAngleXYZ(result(3), result(4), result(5));
-//			delta[3][0] = result(0);
-//			delta[3][1] = result(1);
-//			delta[3][2] = result(2);
-//
-//			T = delta * T;
-//
-//			//if (result.norm() < 1e-5 && result.norm() != 0)
-//			//	break;
-//
-//		} // iter
-//	} // pyr level
-//
-//	currPose = currPose * T;
-//
-//	frame[rgbd::FRAME::VIRTUAL].update();
-//
-//	glm::mat4 invT = glm::inverse(currPose);
-//
-//	gMap->genIndexMap(invT);
-//
-//	if (integratingFlag)
-//	{
-//		gMap->updateGlobalMap(frame[rgbd::FRAME::CURRENT], false, currPose); // 2 ms
-//
-//		gMap->removeUnnecessaryPoints(static_cast<int>(frame[rgbd::FRAME::CURRENT].getDepthFrameCount())); // 3.5 ms
-//
-//	}
-//
-//	gMap->genVirtualFrame(frame[rgbd::FRAME::VIRTUAL], invT); // 1.5 ms
-//
-//
-//	return tracked;
-//}
+	//gradFilter.execute(frame[rgbd::FRAME::CURRENT].getColorFilteredMap(), 0, 0.52201f, 0.79451f, true);
+	gradFilter.execute(frame.getColorFilteredMap(), 0, 3.0f, 10.0f, false);
+
+	k4a::calibration cal = cameraInterface.getCalibration();
+
+
+
+	rgbodo.performColorTracking(
+		frame,
+		gradFilter.getGradientMap(),
+		prePose,
+		glm::vec4(cal.depth_camera_calibration.intrinsics.parameters.param.cx, cal.depth_camera_calibration.intrinsics.parameters.param.cy, cal.depth_camera_calibration.intrinsics.parameters.param.fx, cal.depth_camera_calibration.intrinsics.parameters.param.fy)
+		);
+
+	se3Pose = se3Pose * prePose;
+
+
+	if (integratingFlag)
+	{
+		volume.integrate(0, frame, se3Pose);
+	}
+
+	volume.raycast(frame, se3Pose);
+
+
+	//glEndQuery(GL_TIME_ELAPSED);
+	//GLuint available = 0;
+	//while (!available) {
+	//	glGetQueryObjectuiv(query, GL_QUERY_RESULT_AVAILABLE, &available);
+	//}
+	//// elapsed time in nanoseconds
+	//GLuint64 elapsed;
+	//glGetQueryObjectui64vEXT(query, GL_QUERY_RESULT, &elapsed);
+	//std::cout << "se3 time : " << elapsed / 1000000.0 << std::endl; // 1 ms for 1 iter at full reso
+
+	//std::cout << " se3\n " << glm::to_string(se3Pose) << std::endl;
+
+
+	return tracked;
+}
+
+bool App::runSLAM(
+	glm::mat4 &prePose)
+{
+	bool tracked = true;
+
+	//glm::mat4 pose = currPose;
+	glm::mat4 T = glm::mat4(1.0f);
+
+	float AE;
+	uint32_t icpCount;
+
+	for (int lvl = rgbd::ICPConstParam::MAX_LEVEL - 1; lvl >= 0; lvl--)
+	{
+
+		for (int loop = 0; loop < rgbd::ICPConstParam::MAX_ITR_NUM[lvl]; loop++)
+		{
+			Eigen::Matrix<float, 6, 6, Eigen::RowMajor> A_icp;
+			Eigen::Matrix<float, 6, 1> b_icp;
+
+			splaticp.track(frame,
+				T,
+				lvl
+			);
+
+			splaticp.reduce(
+				glm::ivec2(frame.getWidth(lvl),
+					       frame.getHeight(lvl))
+			);
+
+			splaticp.getReduction(
+				A_icp.data(),
+				b_icp.data(),
+				AE,
+				icpCount);
+
+			Eigen::Matrix<double, 6, 1> result;
+			Eigen::Matrix<double, 6, 6, Eigen::RowMajor> dA_icp = A_icp.cast<double>();
+			Eigen::Matrix<double, 6, 1> db_icp = b_icp.cast<double>();
+
+			result = dA_icp.ldlt().solve(db_icp);
+
+			glm::mat4 delta = glm::eulerAngleXYZ(result(3), result(4), result(5));
+			delta[3][0] = result(0);
+			delta[3][1] = result(1);
+			delta[3][2] = result(2);
+
+			T = delta * T;
+
+			//if (result.norm() < 1e-5 && result.norm() != 0)
+			//	break;
+
+		} // iter
+	} // pyr level
+
+	currPose = currPose * T;
+
+	glm::mat4 invT = glm::inverse(currPose);
+
+	gMap.genIndexMap(invT);
+
+	if (integratingFlag)
+	{
+		gMap.updateGlobalMap(frame, false, currPose); // 2 ms
+
+		gMap.removeUnnecessaryPoints(static_cast<int>(frame.getDepthFrameCount())); // 3.5 ms
+
+	}
+
+	gMap.genVirtualFrame(frame, invT); // 1.5 ms
+
+
+	return tracked;
+}
 
 //
 //bool App::runOdoSplat(
@@ -1094,6 +1131,51 @@ bool App::runP2V(
 }
 
 
+bool App::runImuSLAM(k4a_imu_sample_t& imuValues) {
+
+
+	// imu gyro values are in rads per sec, and we are applying them to depth data obtained at a much slower refresh rate than the sensor
+	// we need to reset to SE3 pose every time a new depth frame comes in?
+
+	// kinect x is realsense -z
+	// kinect y is realsense -x
+	// kinect z is realsense y
+
+	imutrack.processGyro(imuValues);
+	imutrack.processAccel(imuValues);
+
+	glm::vec3 tempTheta = imutrack.getTheta();
+
+	glm::mat4 tempPose = glm::eulerAngleXYZ(-tempTheta.z, -tempTheta.y, -tempTheta.x);
+
+	k4a::calibration cal = cameraInterface.getCalibration();
+	glm::mat4 gyroToDepth;
+
+	int idx = 0;
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			gyroToDepth[i][j] = cal.extrinsics[K4A_CALIBRATION_TYPE_GYRO][K4A_CALIBRATION_TYPE_DEPTH].rotation[idx];
+			idx++;
+		}
+	}
+	for (int i = 0; i < 3; i++) {
+		gyroToDepth[3][i] = cal.extrinsics[K4A_CALIBRATION_TYPE_GYRO][K4A_CALIBRATION_TYPE_DEPTH].translation[i];
+	}
+
+
+	se3Pose = initPose * tempPose;
+
+	currPose = tempPose;
+	if (integratingFlag)
+	{
+		volume.integrate(0, frame, se3Pose);
+	}
+
+	volume.raycast(frame, se3Pose);
+
+	return true;
+}
+
 
 static void error_callback(int error, const char* description)
 {
@@ -1147,11 +1229,14 @@ void App::gDisOptFlowInit()
 	std::string pathToShaders("./shaders/");
 	disflow.loadShaders(progsForDisFlow, pathToShaders);
 
-	int numLevel = GLHelper::numberOfLevels(glm::ivec3(colorFrameSize[0].x, colorFrameSize[0].x, 1));
+	k4a::calibration cal = cameraInterface.getCalibration();
+
+
+	int numLevel = GLHelper::numberOfLevels(glm::ivec3(colorWidth , colorHeight, 1));
 
 	disflow.init(numLevel,
-		colorFrameSize[0].x,
-		colorFrameSize[0].y,
+		colorWidth,
+		colorHeight,
 		progsForDisFlow
 	);
 
@@ -1257,7 +1342,7 @@ void App::resetVolume()
 	//}
 	//else
 	//{
-	//	initPose = glm::mat4(1.0f);// glm::translate(glm::mat4(1.0f), glm::vec3(gconfig.volumeDimensions.x / 2.0f, gconfig.volumeDimensions.y / 2.0f, 0.0f));
+	//	initPose = glm::mat4(1.0f);
 	//	so3Pose = initPose;
 	//	se3Pose = initPose;
 	//	currPose = initPose;
@@ -1281,10 +1366,10 @@ void App::resetVolume()
 	}
 
 
-	//if (useSplatter || useODOSplat)
-	//{
-	//	clearSplatter();
-	//}
+	if (useSplatter || useODOSplat)
+	{
+		clearSplatter();
+	}
 
 	//if (trackDepthToPoint)
 	//{
@@ -1355,7 +1440,7 @@ void App::saveSTL()
 
 void App::saveSplatter()
 {
-	gMap->savePointCloud("data/meshes/splatterVertsBin.ply");
+	gMap.savePointCloud("data/meshes/splatterVertsBin.ply");
 }
 
 void App::loadPreviousExtrinsicCalibrationFromFile()
@@ -1916,6 +2001,7 @@ void App::setUI()
 
 			if (ImGui::Button("RGB")) useSO3 ^= 1; ImGui::SameLine(); ImGui::Checkbox("", &useSO3); ImGui::SameLine();
 			if (ImGui::Button("RGB+D")) useSE3 ^= 1; ImGui::SameLine(); ImGui::Checkbox("", &useSE3); 
+			if (ImGui::Button("IMU")) useIMU ^= 1; ImGui::SameLine(); ImGui::Checkbox("", &useIMU);
 
 			ImGui::Text("combo");
 			if (ImGui::Button("odop2p")) useODOP2P ^= 1; ImGui::SameLine(); ImGui::Checkbox("", &useODOP2P); ImGui::SameLine();
@@ -2011,7 +2097,7 @@ void App::setUI()
 
 					GLuint mSize;
 					
-					gflood->setGlobalMapBuffer(gMap->getGlobalBuffer(mSize));
+					gflood->setGlobalMapBuffer(gMap.getGlobalBuffer(mSize));
 					gflood->setGlobalMapBufferSize(mSize);
 
 				}
@@ -2293,7 +2379,6 @@ void App::setUpGPU()
 	
 	//krender.setBuffersFromMarchingCubes(gfusion.getVertsMC(), gfusion.getNormsMC(), gfusion.getNumVerts());
 
-	//gDisOptFlowInit();
 
 	//kRenderInit();
 
@@ -2305,11 +2390,8 @@ void App::setUpGPU()
 
 	//initP2VFusion();
 
-	//initGradient();
 
-	//initDTAM();
 
-	//initRGBodo();
 
 
 
@@ -2317,9 +2399,22 @@ void App::setUpGPU()
 
 	initScreen();
 
+	initGradient();
+
+	initDTAM();
+
+	initRGBodo();
+
+
 	initP2PFusion();
 
 	initP2VFusion();
+
+	initSplatterFusion();
+
+
+	gDisOptFlowInit();
+
 
 
 }
@@ -2433,18 +2528,24 @@ void App::getIncrementalTransform()
 
 	glm::mat4 prealignPose = glm::mat4(1.0f);
 
+	if (useIMU) {
 
-	//// prealignment using color (or perhaps inertial sensor?)
-	//if (useSO3)
-	//{
-	//	so3Tracked = runDTAM(prealignPose);
-	//}
+		if (imuReady) {
+			runImuSLAM(imuValues);
+		}
+	}
 
-	//// if use color rgbd odometery
-	//if (useSE3)
-	//{
-	//	//se3Tracked = runRGBOdo(prealignPose);
-	//}
+	// prealignment using color (or perhaps inertial sensor?)
+	if (useSO3)
+	{
+		so3Tracked = runDTAM(prealignPose);
+	}
+
+	// if use color rgbd odometery
+	if (useSE3)
+	{
+		se3Tracked = runRGBOdo(prealignPose);
+	}
 
 	if (trackDepthToPoint)
 	{
@@ -2456,16 +2557,16 @@ void App::getIncrementalTransform()
 		tracked = runP2V(prealignPose);
 	}
 
-	//if (useSplatter)
-	//{
-	//	glEnable(GL_CULL_FACE);
+	if (useSplatter)
+	{
+		glEnable(GL_CULL_FACE);
 
-	//	//slammed = runSLAM(prealignPose);
+		slammed = runSLAM(prealignPose);
 
-	//	glDisable(GL_CULL_FACE);
+		glDisable(GL_CULL_FACE);
 
-	//	//runDTAM();
-	//}
+		//runDTAM();
+	}
 
 	//if (useODOP2P)
 	//{
@@ -2490,10 +2591,19 @@ void App::getIncrementalTransform()
 void App::mainLoop()
 {
 
-	int depthWidth = 640;
-	int depthHeight = 576;
-	int colorWidth = 1280;
-	int colorHeight = 720;
+	//std::vector<float> dataImage(1000, 0);
+
+	//for (int i = 0; i < dataArray.size(); i++) {
+	//	dataArray[i] = i;
+	//}
+
+	//for (int i = 0; i < dataImage.width(); i++) {
+	//	for (int j = 0; j < dataImage.height(); j++) {
+	//		dataArray[i][j] *= 2;
+	//	}
+	//}
+
+
 
 	cameraInterface.init(K4A_DEPTH_MODE_NFOV_UNBINNED, K4A_COLOR_RESOLUTION_720P);
 	cameraInterface.startCamera();
@@ -2537,14 +2647,12 @@ void App::mainLoop()
 
 	uint64_t previousTime = 0;// ();
 
-	bool frameReady = false;
+
 
 	cv::Mat colMat, infraMat, depthMat;
 	bool slammed = false;
 
-	k4a::image depthImage;
-	k4a::image colorImage;
-	k4a::image infraImage;
+
 
 	// Main loop
 	while (!glfwWindowShouldClose(window))
@@ -2552,11 +2660,14 @@ void App::mainLoop()
 		glfwGetFramebufferSize(window, &display_w, &display_h);
 
 		//// Rendering
-		glViewport(0, 0, display_w, display_h);
-		glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-		glClear(GL_COLOR_BUFFER_BIT);
+		//glViewport(0, 0, display_w, display_h);
+		//glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+		//glClear(GL_COLOR_BUFFER_BIT);
 
 		frameReady = cameraInterface.getImages(depthImage, colorImage, infraImage);
+		imuReady = cameraInterface.getIMU(imuValues);
+
+
 
 		if (frameReady) {
 	/*		cv::Mat depthIm = cv::Mat(576, 640, CV_16UC1, (void*)depthImage.get_buffer());
@@ -2568,10 +2679,17 @@ void App::mainLoop()
 
 			cv::imshow("cool", colorIm);
 			cv::waitKey(1);*/
-
+			//imutrack.setTheta();
 			updateFrames(depthImage, colorImage, infraImage, cameraInterface.getCalibration());
-
 			getIncrementalTransform();
+
+			gradFilter.execute(frame.getColorPreviousMap(), 0, 3.0f, 10.0f, false);
+
+			disflow.execute(frame,
+				gradFilter.getGradientMap()
+			);
+
+
 		}
 
 
@@ -2823,50 +2941,50 @@ void App::mainLoop()
 		//		" " << currentPose[2].x << " " << currentPose[2].y << " " << currentPose[2].z << " " << currentPose[2].w << \
 		//		" " << currentPose[3].x << " " << currentPose[3].y << " " << currentPose[3].z << " " << currentPose[3].w << std::endl;
 
-		//	//graphPoints.push_back(gfusion.getTransPose());
-		//	glm::vec4 transformedInitOff = currentPose * glm::vec4(initOff, 1.0f);
+			//graphPoints.push_back(gfusion.getTransPose());
+			glm::vec4 transformedInitOff = se3Pose * glm::vec4(initOff, 1.0f);
 
-		//	//glm::vec4 transformedInitOff = colorPose * glm::vec4(0,0,0, 1.0f);
-		//	//glm::vec4 transformedInitOff;
-		//	//if (useSE3)
-		//	//{
-		//	//	transformedInitOff = se3Pose * glm::vec4(initOff, 1.0f);
-		//	//}
-		//	//else if (useSO3)
-		//	//{
-		//	//	transformedInitOff = so3Pose * glm::vec4(0, 0, 100, 1.0f);
-		//	//}
+			//glm::vec4 transformedInitOff = colorPose * glm::vec4(0,0,0, 1.0f);
+			//glm::vec4 transformedInitOff;
+			//if (useSE3)
+			//{
+			//	transformedInitOff = se3Pose * glm::vec4(initOff, 1.0f);
+			//}
+			//else if (useSO3)
+			//{
+			//	transformedInitOff = so3Pose * glm::vec4(0, 0, 100, 1.0f);
+			//}
 
-		//	graphPoints.push_back(transformedInitOff);
-		//	if (graphPoints.size() > graphWindow.w)
-		//	{
-		//		graphPoints.pop_front();
-		//	}
+			graphPoints.push_back(transformedInitOff);
+			if (graphPoints.size() > graphWindow.w)
+			{
+				graphPoints.pop_front();
+			}
 
-		//	minmaxX = std::make_pair<float, float>(1000, -1000.f);
-		//	minmaxY = std::make_pair<float, float>(1000, -1000.f);;
-		//	minmaxZ = std::make_pair<float, float>(1000, -1000.f);;
+			minmaxX = std::make_pair<float, float>(1000, -1000.f);
+			minmaxY = std::make_pair<float, float>(1000, -1000.f);;
+			minmaxZ = std::make_pair<float, float>(1000, -1000.f);;
 
-		//	int idx = 0;
-		//	for (auto i : graphPoints)
-		//	{
-		//		if (i[0] < minmaxX.first) minmaxX.first = i.x;
-		//		if (i[0] > minmaxX.second) minmaxX.second = i.x;
+			int idx = 0;
+			for (auto i : graphPoints)
+			{
+				if (i[0] < minmaxX.first) minmaxX.first = i.x;
+				if (i[0] > minmaxX.second) minmaxX.second = i.x;
 
-		//		if (i[1] < minmaxY.first) minmaxY.first = i.y;
-		//		if (i[1] > minmaxY.second) minmaxY.second = i.y;
+				if (i[1] < minmaxY.first) minmaxY.first = i.y;
+				if (i[1] > minmaxY.second) minmaxY.second = i.y;
 
-		//		if (i[2] < minmaxZ.first) minmaxZ.first = i.z;
-		//		if (i[2] > minmaxZ.second) minmaxZ.second = i.z;
+				if (i[2] < minmaxZ.first) minmaxZ.first = i.z;
+				if (i[2] > minmaxZ.second) minmaxZ.second = i.z;
 
-		//		arrayX[idx] = i.x;
-		//		arrayY[idx] = i.y;
-		//		arrayZ[idx] = i.z;
+				arrayX[idx] = i.x;
+				arrayY[idx] = i.y;
+				arrayZ[idx] = i.z;
 
-		//		idx++;
-		//	}
+				idx++;
+			}
 
-		//}
+		
 
 
 
@@ -2934,21 +3052,29 @@ void App::mainLoop()
 		//	krender.Render(false, cameraDevice);
 		//}
 		
-		int renderOpts;
 
 
-			renderOpts = getRenderOptions(showDepthFlag, showNormalFlag, showColorFlag, showInfraFlag, showFlowFlag);
 
-			if (renderOpts > 0 && cameraRunning)
+			if (cameraRunning)
 			{
 
+				int renderOpts;
+
 				glViewport(display2DWindow.x, display_h - display2DWindow.y - display2DWindow.h, display2DWindow.w, display2DWindow.h);
-
+				renderOpts = getRenderOptions(showDepthFlag, showNormalFlag, showColorFlag, showInfraFlag, showFlowFlag);
 				quad.setParams(renderOpts, glm::vec2(depthMin, depthMax), texLevel, 1.0f);
-
-
 				//quad.renderMulti(frame[rgbd::FRAME::CURRENT].getDepthMap(), frame[rgbd::FRAME::VIRTUAL].getNormalMap(), frame[rgbd::FRAME::CURRENT].getColorAlignedToDepthMap(), frame[rgbd::FRAME::CURRENT].getInfraMap(), frame[rgbd::FRAME::CURRENT].getMappingC2DMap(), disflow.getFlowMap());
 				quad.renderMulti(frame.getDepthMap(), frame.getVirtualNormalMap(), frame.getColorMap(), frame.getInfraMap(), frame.getMappingC2DMap(), frame.getInfraMap());
+			
+				
+				
+				
+				glViewport(display3DWindow.x, display_h - display3DWindow.y - display3DWindow.h, display3DWindow.w, display3DWindow.h);
+				renderOpts = getRenderOptions(0, showNormalFlag, showColorFlag, showInfraFlag, showFlowFlag);
+				quad.setParams(renderOpts, glm::vec2(depthMin, depthMax), texLevel, 1.0f);
+				quad.renderMulti(frame.getDepthMap(), frame.getVertexMap(), frame.getColorAlignedToDepthMap(), frame.getInfraMap(), frame.getMappingC2DMap(), disflow.getFlowMap());
+
+			
 			}
 
 

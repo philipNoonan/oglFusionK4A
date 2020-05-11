@@ -32,10 +32,12 @@ namespace rgbd
 	struct FrameData
 	{
 		gl::Texture::Ptr colorMap;
+		gl::Texture::Ptr virtualColorMap;
 		gl::Texture::Ptr colorPreviousMap;
 		gl::Texture::Ptr colorFilteredMap;
 		gl::Texture::Ptr colorAlignedToDepthMap;
 		gl::Texture::Ptr depthMap;
+		gl::Texture::Ptr virtualDepthMap;
 		gl::Texture::Ptr depthPreviousMap;
 		gl::Texture::Ptr vertexMap;
 		gl::Texture::Ptr virtualVertexMap;
@@ -172,14 +174,17 @@ namespace rgbd
 		void reset();
 
 		gl::Texture::Ptr getColorMap(int lv = 0) const;
+		gl::Texture::Ptr getVirtualColorMap(int lv = 0) const;
 		gl::Texture::Ptr getColorPreviousMap(int lv = 0) const;
 		gl::Texture::Ptr getColorFilteredMap(int lv = 0) const;
 		gl::Texture::Ptr getColorAlignedToDepthMap(int lv = 0) const;
 
 		gl::Texture::Ptr getDepthMap(int lv = 0) const;
+		gl::Texture::Ptr getVirtualDepthMap(int lv = 0) const;
+
 		gl::Texture::Ptr getDepthPreviousMap(int lv = 0) const;
 		gl::Texture::Ptr getVertexMap(int lv = 0) const;
-		gl::Texture::Ptr getVirtualVertexMap(int lv) const;
+		gl::Texture::Ptr getVirtualVertexMap(int lv = 0) const;
 		gl::Texture::Ptr getVertexPreviousMap(int lv = 0) const;
 
 		gl::Texture::Ptr getNormalMap(int lv = 0) const;

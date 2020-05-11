@@ -63,7 +63,8 @@ void main()
 
 		if (renderColor == 1)
 		{
-			outColor = textureLod(colorTex, vsTexCoord, level);
+			vec4 tempColor = textureLod(colorTex, vsTexCoord, level);
+			outColor = vec4(tempColor.zyx, 1);
 		}
 
 		if (renderFlow == 1)

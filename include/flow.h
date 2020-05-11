@@ -60,15 +60,15 @@ public:
 	void setFrameTexture(gl::Texture::Ptr inTex);
 
 	void setTexture(unsigned char * imageArray, int nChn);
-	void setTexture(std::vector<rs2::frame_queue> colorQ, cv::Mat &colorMat);
+	//void setTexture(std::vector<rs2::frame_queue> colorQ, cv::Mat &colorMat);
 	void setTexture(float * imageArray);
-	void setDepthTexture(std::vector<rs2::frame_queue> depthQ);
+	//void setDepthTexture(std::vector<rs2::frame_queue> depthQ);
 	GLuint getDepthTexture()
 	{
 		return m_textureDepth;
 	}
-	void setColorTexture(std::vector<rs2::frame_queue> colorQ, cv::Mat &colorMat);
-	void setInfraTexture(std::vector<rs2::frame_queue> infraQ, cv::Mat &infraMat);
+	//void setColorTexture(std::vector<rs2::frame_queue> colorQ, cv::Mat &colorMat);
+	//void setInfraTexture(std::vector<rs2::frame_queue> infraQ, cv::Mat &infraMat);
 	void computeSobel(int level, bool useInfrared);
 	void makePatches(int level);
 	//bool precomputeStructureTensor();
