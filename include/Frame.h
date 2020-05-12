@@ -21,6 +21,7 @@
 #include "CalcNormalMap.h"
 #include "DownSampling.h"
 #include "AlignDepthColor.h"
+#include "Undistort.h"
 
 namespace rgbd
 {
@@ -69,8 +70,11 @@ namespace rgbd
 		gl::Texture::Ptr mappingC2DMap;
 		gl::Texture::Ptr mappingD2CMap;
 
+		gl::Texture::Ptr xyDepthLUT;
+
 		std::vector<rgbd::FrameData> frameData;
 
+		rgbd::ComputeShader::Ptr undistort;
 		rgbd::ComputeShader::Ptr bilateralFilter;
 		rgbd::ComputeShader::Ptr casFilter;
 		rgbd::ComputeShader::Ptr alignDC;
@@ -85,12 +89,18 @@ namespace rgbd
 		std::map<std::string, const gl::Shader::Ptr> progs;
 
 		k4a::calibration cal;
+		k4a_image_t xy_table;
+		void createXYTable();
+		//k4a::image vertImage;
+
+
 
 	public:
 		Frame();
 		~Frame();
 
 		void setCalibration(k4a::calibration calibration);
+
 
 		void create(
 			int width,
@@ -180,6 +190,7 @@ namespace rgbd
 		gl::Texture::Ptr getColorAlignedToDepthMap(int lv = 0) const;
 
 		gl::Texture::Ptr getDepthMap(int lv = 0) const;
+		gl::Texture::Ptr getRawDepthMap(int lv = 0) const;
 		gl::Texture::Ptr getVirtualDepthMap(int lv = 0) const;
 
 		gl::Texture::Ptr getDepthPreviousMap(int lv = 0) const;

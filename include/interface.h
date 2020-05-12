@@ -17,7 +17,7 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
-#include "device.h"
+//#include "device.h"
 
 #include <k4a/k4a.hpp>
 

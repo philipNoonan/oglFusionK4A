@@ -19,6 +19,7 @@ namespace rgbd
 
 		void execute(
 			gl::Texture::Ptr srcDepthMap,
+			gl::Texture::Ptr LUTMap,
 			gl::Texture::Ptr dstVertexMap,
 			float minDepth,
 			float maxDepth,

@@ -14,6 +14,7 @@ namespace rgbd
 
 	void CalcVertexMap::execute(
 		gl::Texture::Ptr srcDepthMap,
+		gl::Texture::Ptr LUTMap,
 		gl::Texture::Ptr dstVertexMap,
 		float minDepth,
 		float maxDepth,
@@ -28,7 +29,8 @@ namespace rgbd
 
 		prog->use();
 		srcDepthMap->bindImage(0, 0, GL_READ_ONLY);
-		dstVertexMap->bindImage(1, 0, GL_WRITE_ONLY);
+		LUTMap->bindImage(1, 0, GL_READ_ONLY);
+		dstVertexMap->bindImage(2, 0, GL_WRITE_ONLY);
 		glDispatchCompute(GLHelper::divup(dstVertexMap->getWidth(), 32), GLHelper::divup(dstVertexMap->getHeight(), 32), 1);
 		prog->disuse();
 	}

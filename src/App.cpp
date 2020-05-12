@@ -2683,12 +2683,21 @@ void App::mainLoop()
 			updateFrames(depthImage, colorImage, infraImage, cameraInterface.getCalibration());
 			getIncrementalTransform();
 
-			gradFilter.execute(frame.getColorPreviousMap(), 0, 3.0f, 10.0f, false);
 
-			disflow.execute(frame,
-				gradFilter.getGradientMap()
-			);
 
+			if (performFlow) {
+
+				gradFilter.execute(frame.getColorPreviousMap(), 
+					0, 
+					3.0f,
+					10.0f,
+					false
+				);
+
+				disflow.execute(frame,
+					gradFilter.getGradientMap()
+				);
+			}
 
 		}
 
@@ -3070,9 +3079,9 @@ void App::mainLoop()
 				
 				
 				glViewport(display3DWindow.x, display_h - display3DWindow.y - display3DWindow.h, display3DWindow.w, display3DWindow.h);
-				renderOpts = getRenderOptions(0, showNormalFlag, showColorFlag, showInfraFlag, showFlowFlag);
+				renderOpts = getRenderOptions(showDepthFlag, showNormalFlag, showColorFlag, showInfraFlag, showFlowFlag);
 				quad.setParams(renderOpts, glm::vec2(depthMin, depthMax), texLevel, 1.0f);
-				quad.renderMulti(frame.getDepthMap(), frame.getVertexMap(), frame.getColorAlignedToDepthMap(), frame.getInfraMap(), frame.getMappingC2DMap(), disflow.getFlowMap());
+				quad.renderMulti(frame.getRawDepthMap(), frame.getVertexMap(), frame.getColorAlignedToDepthMap(), frame.getInfraMap(), frame.getMappingC2DMap(), disflow.getFlowMap());
 
 			
 			}

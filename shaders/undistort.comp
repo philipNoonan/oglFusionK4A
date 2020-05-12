@@ -1,0 +1,36 @@
+#version 430
+layout (local_size_x = 32, local_size_y = 32) in;
+
+layout (binding = 0, rgba32f) readonly uniform image2D dataIn;		// Input vert map
+layout (binding = 1, r32f) writeonly uniform image2D dataRawOut;	// Output depth float map
+
+uniform float depthScale;
+
+uniform vec4 cam; // cx, cy, fx, fy
+
+vec3 projectPointImage(vec3 p)
+{
+    return vec3(((cam.z * p.x) / p.z) + cam.x,
+                ((cam.w * p.y) / p.z) + cam.y,
+                p.z);
+}
+
+void main()
+{
+		vec2 pix = vec2(gl_GlobalInvocationID.xy);
+
+		//if (pix.x >= 640 || pix.y >= 576) {
+		//	return;
+		//}
+
+		vec4 vert = imageLoad(dataIn, ivec2(pix));
+
+		if (vert.z < 0) {
+			return;
+		}
+
+		vec3 pos = projectPointImage(vert.xyz);
+
+		imageStore(dataRawOut, ivec2(pos.x + 0.5, pos.y + 0.5), vec4(pos.z, 0, 0, 1));
+
+}

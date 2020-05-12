@@ -1,3 +1,5 @@
+// https://github.com/amdreallyfast/GpuRadixSort/blob/master/Shaders/ParallelSort/ParallelPrefixScan.comp
+
 #version 430
 layout(local_size_x = 1024) in;
 

@@ -23,8 +23,15 @@ namespace rgbd
 		int wC = cal.color_camera_calibration.resolution_width;
 		int hC = cal.color_camera_calibration.resolution_height;
 
+		//vertImage = k4a::image::create(K4A_IMAGE_FORMAT_CUSTOM16,
+		//	wD,
+		//	hD,
+		//	wD * 3 * (int)sizeof(int16_t)
+		//);
+
 		width = wD; // CHECK THIS!
 		height = hD; // CHECK THIS!
+
 
 		depthToColor = glm::mat4(1);
 
@@ -72,7 +79,7 @@ namespace rgbd
 		frameData[0].colorFilteredMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
 
 		frameData[0].colorAlignedToDepthMap = std::make_shared<gl::Texture>();
-		frameData[0].colorAlignedToDepthMap->createStorage(numberOfLevelsColor, wC, hC, 4, GL_RGBA8, gl::TextureType::COLOR, 1);
+		frameData[0].colorAlignedToDepthMap->createStorage(numberOfLevelsDepth, wD, hD, 4, GL_RGBA8, gl::TextureType::COLOR, 1);
 		frameData[0].colorAlignedToDepthMap->setFiltering(GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST);
 		frameData[0].colorAlignedToDepthMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
 
@@ -155,7 +162,7 @@ namespace rgbd
 		testMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
 
 		mappingD2CMap = std::make_shared<gl::Texture>();
-		mappingD2CMap->createStorage(numberOfLevelsDepth, wD, hD, 2, GL_RG16UI, gl::TextureType::UINT16, 0);
+		mappingD2CMap->createStorage(numberOfLevelsDepth, wC, hC, 2, GL_RG16UI, gl::TextureType::UINT16, 0);
 		mappingD2CMap->setFiltering(GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST);
 		mappingD2CMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
 
@@ -165,6 +172,16 @@ namespace rgbd
 		mappingC2DMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
 
 
+		createXYTable();
+		xyDepthLUT = std::make_shared<gl::Texture>();
+		xyDepthLUT->createStorage(numberOfLevelsDepth, wD, hD, 2, GL_RG32F, gl::TextureType::FLOAT32, 0);
+		xyDepthLUT->setFiltering(GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST);
+		xyDepthLUT->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
+		xyDepthLUT->update((void*)k4a_image_get_buffer(xy_table));
+		
+
+
+		undistort = std::make_shared<rgbd::Undistort>(progs["Undistort"]);
 		bilateralFilter = std::make_shared<rgbd::BilateralFilter>(progs["BilateralFilter"]);
 		casFilter = std::make_shared<rgbd::CASFilter>(progs["CASFilter"]);
 		alignDC = std::make_shared<rgbd::AlignDepthColor>(progs["alignDepthColor"]);
@@ -187,6 +204,7 @@ namespace rgbd
 		const std::string& folderPath
 	)
 	{
+		progs.insert(std::make_pair("Undistort", std::make_shared<gl::Shader>(folderPath + "Undistort.comp")));
 		progs.insert(std::make_pair("BilateralFilter", std::make_shared<gl::Shader>(folderPath + "BilateralFilter.comp")));
 		progs.insert(std::make_pair("CASFilter", std::make_shared<gl::Shader>(folderPath + "contrastAdaptiveSharpening.comp")));
 		progs.insert(std::make_pair("alignDepthColor", std::make_shared<gl::Shader>(folderPath + "alignDepthColor.comp")));
@@ -196,254 +214,56 @@ namespace rgbd
 		progs.insert(std::make_pair("DownSamplingD", std::make_shared<gl::Shader>(folderPath + "DownSamplingD.comp")));
 		progs.insert(std::make_pair("DownSamplingV", std::make_shared<gl::Shader>(folderPath + "DownSamplingV.comp")));
 		progs.insert(std::make_pair("DownSamplingN", std::make_shared<gl::Shader>(folderPath + "DownSamplingN.comp")));
-
 	}
 
-	//void Frame::create(
-	//	int width,
-	//	int height,
-	//	int maxLevel,
-	//	glm::mat4 K,
-	//	float depthScale,
-	//	std::map<std::string, const gl::Shader::Ptr>& progs
-	//)
-	//{
-	//	this->width = width;
-	//	this->height = height;
-	//	this->K = K;
+	void Frame::createXYTable() {
 
-	//	frameData.resize(1);
-	//	int numberOfLevels = GLHelper::numberOfLevels(glm::ivec3(width, height, 1));
+		k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+			cal.depth_camera_calibration.resolution_width,
+			cal.depth_camera_calibration.resolution_height,
+			cal.depth_camera_calibration.resolution_width * (int)sizeof(k4a_float2_t),
+			&xy_table);
 
-	//	// Color needs only "one" level
-	//	// Note: Color must be 4ch since compute shader does not support rgb8 internal format.
-	//	frameData[0].colorMap = std::make_shared<gl::Texture>();
-	//	frameData[0].colorMap->createStorage(numberOfLevels, width, height, 4, GL_RGBA8, gl::TextureType::COLOR, 1);
-	//	//frameData[0].colorMap->create(0, width, height, 4, gl::TextureType::COLOR);
-	//	frameData[0].colorMap->setFiltering(GL_LINEAR, GL_LINEAR_MIPMAP_NEAREST);
-	//	frameData[0].colorMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
+		k4a_float2_t* table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
 
-	//	frameData[0].colorPreviousMap = std::make_shared<gl::Texture>();
-	//	frameData[0].colorPreviousMap->createStorage(numberOfLevels, width, height, 4, GL_RGBA8, gl::TextureType::COLOR, 1);
-	//	//frameData[0].colorPreviousMap->create(0, width, height, 4, gl::TextureType::COLOR);
-	//	frameData[0].colorPreviousMap->setFiltering(GL_LINEAR, GL_LINEAR_MIPMAP_NEAREST);
-	//	frameData[0].colorPreviousMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
+		int width = cal.depth_camera_calibration.resolution_width;
+		int height = cal.depth_camera_calibration.resolution_height;
 
-	//	frameData[0].colorFilteredMap = std::make_shared<gl::Texture>();
-	//	frameData[0].colorFilteredMap->createStorage(numberOfLevels, width, height, 4, GL_RGBA8, gl::TextureType::COLOR, 1);
-	//	//frameData[0].colorFilteredMap->create(0, width, height, 4, gl::TextureType::COLOR);
-	//	frameData[0].colorFilteredMap->setFiltering(GL_LINEAR, GL_LINEAR_MIPMAP_NEAREST);
-	//	frameData[0].colorFilteredMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
+		//cal.depth_camera_calibration.intrinsics.parameters.param.k4 = 10.004;
 
-	//	frameData[0].colorAlignedToDepthMap = std::make_shared<gl::Texture>();
-	//	frameData[0].colorAlignedToDepthMap->createStorage(numberOfLevels, width, height, 4, GL_RGBA8, gl::TextureType::COLOR, 1);
-	//	//frameData[0].colorAlignedToDepthMap->create(0, width, height, 4, gl::TextureType::COLOR);
-	//	frameData[0].colorAlignedToDepthMap->setFiltering(GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST);
-	//	frameData[0].colorAlignedToDepthMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
+		k4a_float2_t p;
+		k4a_float3_t ray;
+		int valid;
 
-	//	frameData[0].depthMap = std::make_shared<gl::Texture>();
-	//	frameData[0].depthMap->createStorage(maxLevel, width, height, 1, GL_R32F, gl::TextureType::FLOAT32, 0);
-	//	frameData[0].depthMap->setFiltering(GL_NEAREST, GL_NEAREST);
-	//	frameData[0].depthMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
+		for (int y = 0, idx = 0; y < height; y++)
+		{
+			p.xy.y = (float)y;
+			for (int x = 0; x < width; x++, idx++)
+			{
+				p.xy.x = (float)x;
 
-	//	frameData[0].vertexMap = std::make_shared<gl::Texture>();
-	//	frameData[0].vertexMap->createStorage(maxLevel, width, height, 4, GL_RGBA32F, gl::TextureType::FLOAT32, 0);
-	//	frameData[0].vertexMap->setFiltering(GL_LINEAR, GL_LINEAR);
-	//	frameData[0].vertexMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
+				k4a_calibration_2d_to_3d(
+					&cal, 
+					&p, 
+					1.f,
+					K4A_CALIBRATION_TYPE_DEPTH, 
+					K4A_CALIBRATION_TYPE_DEPTH, 
+					&ray, 
+					&valid);
 
-	//	frameData[0].normalMap = std::make_shared<gl::Texture>();
-	//	frameData[0].normalMap->createStorage(maxLevel, width, height, 4, GL_RGBA32F, gl::TextureType::FLOAT32, 0);
-	//	frameData[0].normalMap->setFiltering(GL_LINEAR, GL_LINEAR_MIPMAP_NEAREST);
-	//	frameData[0].normalMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
-
-	//	frameData[0].depthPreviousMap = std::make_shared<gl::Texture>();
-	//	frameData[0].depthPreviousMap->createStorage(maxLevel, width, height, 1, GL_R32F, gl::TextureType::FLOAT32, 0);
-	//	frameData[0].depthPreviousMap->setFiltering(GL_NEAREST, GL_NEAREST);
-	//	frameData[0].depthPreviousMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
-
-	//	frameData[0].vertexPreviousMap = std::make_shared<gl::Texture>();
-	//	frameData[0].vertexPreviousMap->createStorage(maxLevel, width, height, 4, GL_RGBA32F, gl::TextureType::FLOAT32, 0);
-	//	frameData[0].vertexPreviousMap->setFiltering(GL_NEAREST, GL_NEAREST);
-	//	frameData[0].vertexPreviousMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
-
-	//	shortDepthMap = std::make_shared<gl::Texture>();
-	//	shortDepthMap->create(0, width, height, 1, gl::TextureType::UINT16);
-	//	shortDepthMap->setFiltering(GL_NEAREST, GL_NEAREST);
-	//	shortDepthMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
-
-	//	rawDepthMap = std::make_shared<gl::Texture>();
-	//	rawDepthMap->create(0, width, height, 1, gl::TextureType::FLOAT32);
-	//	rawDepthMap->setFiltering(GL_NEAREST, GL_NEAREST);
-	//	rawDepthMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
-
-
-	//	trackMap = std::make_shared<gl::Texture>();
-	//	trackMap->createStorage(maxLevel, width, height, 4, GL_RGBA8, gl::TextureType::COLOR, 1);
-	//	trackMap->setFiltering(GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST);
-	//	trackMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
-
-	//	infraMap = std::make_shared<gl::Texture>();
-	//	infraMap->create(0, width, height, 1, gl::TextureType::COLOR);
-	//	infraMap->setFiltering(GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST);
-	//	infraMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
-
-	//	testMap = std::make_shared<gl::Texture>();
-	//	testMap->createStorage(maxLevel, width, height, 4, GL_RGBA32F, gl::TextureType::FLOAT32, 0);
-	//	testMap->setFiltering(GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST);
-	//	testMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
-
-	//	mappingD2CMap = std::make_shared<gl::Texture>();
-	//	mappingD2CMap->createStorage(maxLevel, width, height, 2, GL_RG16UI, gl::TextureType::UINT16, 0);
-	//	mappingD2CMap->setFiltering(GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST);
-	//	mappingD2CMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
-
-	//	mappingC2DMap = std::make_shared<gl::Texture>();
-	//	mappingC2DMap->createStorage(maxLevel, width, height, 2, GL_RG16UI, gl::TextureType::UINT16, 0);
-	//	mappingC2DMap->setFiltering(GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST);
-	//	mappingC2DMap->setWarp(gl::TextureWarp::CLAMP_TO_EDGE);
-
-	//	bilateralFilter = std::make_shared<rgbd::BilateralFilter>(progs["BilateralFilter"]);
-	//	casFilter = std::make_shared<rgbd::CASFilter>(progs["CASFilter"]);
-	//	alignDC = std::make_shared<rgbd::AlignDepthColor>(progs["alignDepthColor"]);
-
-	//	vertexMapProc = std::make_shared<rgbd::CalcVertexMap>(K, progs["CalcVertexMap"]);
-	//	normalMapProc = std::make_shared<rgbd::CalcNormalMap>(progs["CalcNormalMap"]);
-	//	downSampling.resize(maxLevel - 1);
-
-	//	for (int lv = 0; lv < downSampling.size(); ++lv)
-	//	{
-	//		downSampling[lv] = std::make_shared<rgbd::DownSampling>(
-	//			progs["DownSamplingC"], progs["DownSamplingD"],
-	//			progs["DownSamplingV"], progs["DownSamplingN"]
-	//			);
-	//	}
-	//}
-
-	//void Frame::update(
-	//	int numberOfCameras,
-	//	float depthScale,
-	//	float depthMin,
-	//	float depthMax,
-	//	glm::vec2 bottomLeft,
-	//	glm::vec2 topRight,
-	//	const glm::ivec2 pixel,
-	//	glm::vec3 &vertex,
-	//	cv::Mat &depthM,
-	//	float sharpness,
-	//	float bfSigma,
-	//	float bfDSigma
-	//) 
-	//{
-	//	std::vector<rs2::frame> depthFrame(numberOfCameras);
-	//	std::vector<rs2::frame> colorFrame(numberOfCameras);
-	//	std::vector<rs2::frame> infraFrame(numberOfCameras);
-
-	//	if (!firstFrame)
-	//	{
-	//		for (int lvl = 0; lvl < GLHelper::numberOfLevels(glm::ivec3(frameData[0].colorFilteredMap->getWidth(), frameData[0].colorFilteredMap->getHeight(), 1)); lvl++)
-	//		{
-	//			if (colorFrameArrived)
-	//			{
-	//				glCopyImageSubData(frameData[0].colorFilteredMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//					frameData[0].colorPreviousMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//					frameData[0].colorFilteredMap->getWidth() >> lvl, frameData[0].colorFilteredMap->getHeight() >> lvl, 1);
-	//			}
-
-
-	//			glCopyImageSubData(frameData[0].depthMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//				frameData[0].depthPreviousMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//				frameData[0].depthMap->getWidth() >> lvl, frameData[0].depthMap->getHeight() >> lvl, 1);
-
-	//			glCopyImageSubData(frameData[0].vertexMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//				frameData[0].vertexPreviousMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//				frameData[0].vertexMap->getWidth() >> lvl, frameData[0].vertexMap->getHeight() >> lvl, 1);
-	//		}
-
-	//		colorFrameArrived = false;
-
-	//	}
-
-
-	//	for (int camNumber = 0; camNumber < numberOfCameras; camNumber++)
-	//	{
-	//		colorQ[camNumber].poll_for_frame(&colorFrame[camNumber]);
-	//		if (colorFrame[camNumber] != NULL)
-	//		{
-	//			frameData[0].colorMap->update(colorFrame[camNumber].get_data());
-	//			if (colorFrame[camNumber].supports_frame_metadata(RS2_FRAME_METADATA_SENSOR_TIMESTAMP))
-	//			{
-	//				colorTime = colorFrame[camNumber].get_frame_metadata(RS2_FRAME_METADATA_SENSOR_TIMESTAMP);
-	//			}
-
-	//			colorFrameArrived = true;
-	//		}
-
-	//		infraQ[camNumber].poll_for_frame(&infraFrame[camNumber]);
-	//		if (infraFrame[camNumber] != NULL)
-	//		{
-	//			infraMap->update(infraFrame[camNumber].get_data());
-	//		}
-
-	//		depthQ[camNumber].poll_for_frame(&depthFrame[camNumber]);
-	//		if (depthFrame[camNumber] != NULL)
-	//		{
-	//			shortDepthMap->update(depthFrame[camNumber].get_data());
-
-	//			if (depthFrame[camNumber].supports_frame_metadata(RS2_FRAME_METADATA_SENSOR_TIMESTAMP))
-	//			{
-	//				depthTime = depthFrame[camNumber].get_frame_metadata(RS2_FRAME_METADATA_SENSOR_TIMESTAMP);
-	//			}
-
-	//			if (depthFrame[camNumber].supports_frame_metadata(RS2_FRAME_METADATA_FRAME_COUNTER))
-	//			{
-	//				depthCount++;// = depthFrame[camNumber].get_frame_metadata(RS2_FRAME_METADATA_FRAME_COUNTER);
-	//			}
-	//						
-	//			const uint16_t* p_depth_frame = reinterpret_cast<const uint16_t*>(depthFrame[camNumber].get_data());
-
-	//			int depth_pixel_index = (pixel.y * shortDepthMap->getWidth() + pixel.x);
-
-	//			glm::vec4 tempPoint(0.0f, 0.0f, 0.0f, 1.0f);
-
-	//			tempPoint.z = p_depth_frame[depth_pixel_index] * depthScale;
-
-	//			tempPoint = tempPoint.z * (glm::inverse(K) * glm::vec4(pixel, 1.0f, 0.0f));
-
-	//			vertex.x = tempPoint.x;
-	//			vertex.y = tempPoint.y;
-	//			vertex.z = tempPoint.z;
-
-	//			//depthM = cv::Mat(height, width, CV_16SC1, (void*)depthFrame[camNumber].get_data());
-	//		}
-	//	}
-
-	//	std::dynamic_pointer_cast<rgbd::BilateralFilter>(bilateralFilter)->execute(shortDepthMap, rawDepthMap, frameData[0].depthMap, depthScale, bfSigma, bfDSigma);
-	//	std::dynamic_pointer_cast<rgbd::CASFilter>(casFilter)->execute(frameData[0].colorMap, frameData[0].colorFilteredMap, sharpness);
-	//	std::dynamic_pointer_cast<rgbd::CalcVertexMap>(vertexMapProc)->execute(frameData[0].depthMap, frameData[0].vertexMap, depthMin, depthMax, bottomLeft, topRight);
-	//	std::dynamic_pointer_cast<rgbd::CalcNormalMap>(normalMapProc)->execute(frameData[0].vertexMap, frameData[0].normalMap);
-
-	//	frameData[0].colorFilteredMap->mipmap();
-
-	//	if (firstFrame)
-	//	{
-	//		frameCount++;
-	//		// CAN WE JUST SWAP IDs?
-	//		for (int lvl = 0; lvl < GLHelper::numberOfLevels(glm::ivec3(frameData[0].colorFilteredMap->getWidth(), frameData[0].colorFilteredMap->getHeight(), 1)); lvl++)
-	//		{
-	//			glCopyImageSubData(frameData[0].colorFilteredMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//				frameData[0].colorPreviousMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//				frameData[0].colorFilteredMap->getWidth() >> lvl, frameData[0].colorFilteredMap->getHeight() >> lvl, 1);
-	//			glCopyImageSubData(frameData[0].depthMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//				frameData[0].depthPreviousMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//				frameData[0].depthMap->getWidth() >> lvl, frameData[0].depthMap->getHeight() >> lvl, 1);
-	//			glCopyImageSubData(frameData[0].vertexMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//				frameData[0].vertexPreviousMap->getID(), GL_TEXTURE_2D, lvl, 0, 0, 0,
-	//				frameData[0].vertexMap->getWidth() >> lvl, frameData[0].vertexMap->getHeight() >> lvl, 1);
-	//		}
-	//		firstFrame = false;
-	//	}
-	//	update();
-	//}
+				if (valid)
+				{
+					table_data[idx].xy.x = ray.xyz.x;
+					table_data[idx].xy.y = ray.xyz.y;
+				}
+				else
+				{
+					table_data[idx].xy.x = nanf("");
+					table_data[idx].xy.y = nanf("");
+				}
+			}
+		}
+	}
 
 
 void Frame::update(
@@ -492,6 +312,18 @@ void Frame::update(
 		for (int camNumber = 0; camNumber < numberOfCameras; camNumber++)
 		{
 
+			//k4a_transformation_t transformation = NULL;
+			//transformation = k4a_transformation_create(&cal);
+
+
+			//k4a_transformation_depth_image_to_point_cloud(
+			//	transformation,
+			//	depthImage.handle(),
+			//	K4A_CALIBRATION_TYPE_DEPTH,
+			//	vertImage.handle()
+			//	);
+
+
 				frameData[0].colorMap->update(colorImage.get_buffer());
 
 				colorTime = colorImage.get_device_timestamp();
@@ -528,9 +360,35 @@ void Frame::update(
 			
 		}
 
+		glm::vec4 cam = glm::vec4(
+			cal.depth_camera_calibration.intrinsics.parameters.param.cx,
+			cal.depth_camera_calibration.intrinsics.parameters.param.cy,
+			cal.depth_camera_calibration.intrinsics.parameters.param.fx,
+			cal.depth_camera_calibration.intrinsics.parameters.param.fy
+		);
+
+		glm::vec4 dist1 = glm::vec4(
+			cal.depth_camera_calibration.intrinsics.parameters.param.k1,
+			cal.depth_camera_calibration.intrinsics.parameters.param.k2,
+			cal.depth_camera_calibration.intrinsics.parameters.param.k3,
+			cal.depth_camera_calibration.intrinsics.parameters.param.k4
+		);
+
+		glm::vec4 dist2 = glm::vec4(
+			cal.depth_camera_calibration.intrinsics.parameters.param.k5,
+			cal.depth_camera_calibration.intrinsics.parameters.param.k6,
+			cal.depth_camera_calibration.intrinsics.parameters.param.p1,
+			cal.depth_camera_calibration.intrinsics.parameters.param.p2
+		);
+
 		std::dynamic_pointer_cast<rgbd::BilateralFilter>(bilateralFilter)->execute(shortDepthMap, rawDepthMap, frameData[0].depthMap, 0.001f, bfSigma, bfDSigma);
 		std::dynamic_pointer_cast<rgbd::CASFilter>(casFilter)->execute(frameData[0].colorMap, frameData[0].colorFilteredMap, sharpness);
-		std::dynamic_pointer_cast<rgbd::CalcVertexMap>(vertexMapProc)->execute(frameData[0].depthMap, frameData[0].vertexMap, depthMin, depthMax, bottomLeft, topRight);
+		
+		std::dynamic_pointer_cast<rgbd::CalcVertexMap>(vertexMapProc)->execute(frameData[0].depthMap, xyDepthLUT, frameData[0].vertexMap, depthMin, depthMax, bottomLeft, topRight);
+		
+		std::dynamic_pointer_cast<rgbd::Undistort>(undistort)->execute(frameData[0].vertexMap, rawDepthMap, 0.001f, cam);
+
+		
 		std::dynamic_pointer_cast<rgbd::CalcNormalMap>(normalMapProc)->execute(frameData[0].vertexMap, frameData[0].normalMap);
 
 		frameData[0].colorFilteredMap->mipmap();
@@ -693,6 +551,11 @@ void Frame::update(
 		return frameData[lv].depthMap;
 	}
 
+	gl::Texture::Ptr Frame::getRawDepthMap(int lv) const
+	{
+		return rawDepthMap;
+	}
+
 	gl::Texture::Ptr Frame::getVirtualDepthMap(int lv) const
 	{
 		return frameData[lv].virtualDepthMap;
@@ -745,7 +608,7 @@ void Frame::update(
 
 	gl::Texture::Ptr Frame::getMappingC2DMap() const
 	{
-		return mappingC2DMap;
+		return xyDepthLUT;
 	}
 	gl::Texture::Ptr Frame::getMappingD2CMap() const
 	{

@@ -67,7 +67,7 @@
 #include "GLCore/Shader.h"
 #include "GLCore/Quad.h"
 #include "GLCore/Lines.h"
-#include "splatterFusion.h"
+#include "iterativeClosestPoint.h"
 #include "Frame.h"
 #include "GLCore/Window.h"
 //#include "p2pFusion.h"
@@ -76,6 +76,12 @@
 #include "GradientFilter.h"
 #include "rgbDTAM.h"
 #include "rgbOdometry.h"
+
+#include "globalMap.h"
+
+#include "trackp2p.h"
+#include "trackp2v.h"
+#include "trackIMU.h"
 
 
 

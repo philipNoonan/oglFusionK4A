@@ -10,6 +10,8 @@ uniform float sigma;
 uniform float bSigma;
 const int mSize = 15;
 
+
+
 layout (local_size_x = 32, local_size_y = 32) in;
 
 float normPdf(float x, float sigma)
@@ -51,8 +53,10 @@ void main(void)
 
 		}
 	}
+
+
 	
-	imageStore(dataRawOut, u, vec4(c, 0.0, 0.0, 1.0));
+	imageStore(dataRawOut, u, vec4(0.0, 0.0, 0.0, 1.0));
 
 	imageStore(dataBilOut, u, vec4(finalColor / Z, 0.0, 0.0, 1.0));
 }
